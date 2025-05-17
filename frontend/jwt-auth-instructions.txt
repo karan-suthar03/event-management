@@ -1,0 +1,89 @@
+# JWT Admin Auth API Instructions for Event Management App
+
+## 1. API Endpoints (Spring Boot)
+
+### a. Login
+- POST /api/auth/login
+- Request Body:
+  {
+    "username": "admin",
+    "password": "yourpassword"
+  }
+- Response (success):
+  {
+    "token": "<JWT_TOKEN>",
+    "admin": { "username": "admin", "name": "Ananya" }
+  }
+- Response (failure):
+  {
+    "error": "Invalid credentials"
+  }
+- Status: 200 (success), 401 (failure)
+
+### b. Get Current Admin (Check if logged in)
+- GET /api/auth/me
+- Headers: Authorization: Bearer <JWT_TOKEN>
+- Response (if valid):
+  {
+    "username": "admin",
+    "name": "Ananya"
+  }
+- Status: 200 (success), 401 (if not logged in/invalid token)
+
+### c. Logout
+- (Optional for JWT) JWT is stateless, so logout is handled on the frontend by deleting the token.
+- If you use refresh tokens or a token blacklist, you can add:
+  - POST /api/auth/logout (invalidate token server-side)
+
+## 2. JWT Details
+- JWT Payload Example:
+  {
+    "sub": "admin",
+    "role": "ADMIN",
+    "exp": 1716123456
+  }
+- JWT is signed with a secret key on the backend.
+- Expiration: Set a reasonable expiry (e.g., 1 hour).
+
+## 3. Frontend Flow (React)
+- On login, send credentials to /api/auth/login.
+- On success, store the JWT in localStorage (or a secure cookie if you want extra security).
+- For all admin/protected API calls, send the JWT in the Authorization header:
+  Authorization: Bearer <JWT_TOKEN>
+- On app load, check for a JWT and call /api/auth/me to verify it's still valid.
+- On logout, remove the JWT from storage.
+
+## 4. Security Best Practices
+- Always use HTTPS in production.
+- Never store sensitive data in JWT (only user id/role, not password).
+- Set a short expiry and optionally use refresh tokens for longer sessions.
+- Validate JWT signature and expiry on every protected backend endpoint.
+- Hash passwords in your database (e.g., BCrypt).
+
+## 5. Example API Responses
+### Login Success
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "admin": {
+    "username": "admin",
+    "name": "Ananya"
+  }
+}
+### Login Failure
+{
+  "error": "Invalid credentials"
+}
+### /me Success
+{
+  "username": "admin",
+  "name": "Ananya"
+}
+### /me Failure (invalid/expired token)
+{
+  "error": "Unauthorized"
+}
+
+## 6. Backend (Spring Boot) Hints
+- Use spring-boot-starter-security and jjwt or java-jwt for JWT handling.
+- On login, authenticate user, generate JWT, and return it.
+- For protected endpoints, use a JWT filter to validate the token.

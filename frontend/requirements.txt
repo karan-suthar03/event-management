@@ -1,0 +1,60 @@
+# Event Management Platform Requirements
+
+## Overview
+A creative, modern event management website for a solo event organizer (Ananya) with:
+- React + Tailwind CSS frontend
+- (Optional) Spring Boot + PostgreSQL backend
+
+## User Roles
+### 1. Customer/User
+- Browse all completed events, sectioned by category (Birthday, Anniversary, Celebration, etc.)
+- View event details: photo gallery, highlights, organizer notes, and feedback
+- Submit feedback/comments on events
+- Request similar events (event request form)
+
+### 2. Admin (Ananya)
+- **Full CRUD on Events:**
+  - Add, edit, or delete any event
+  - Assign/edit event category (Birthday, Anniversary, etc.) or create new categories
+  - Manage event details: title, description, highlights, images, organizer notes
+  - Mark events as "featured" (appear on home/featured sections)
+- **Category Management:**
+  - Create, edit, or delete event categories
+- **Feedback/Comments Management:**
+  - View all feedback/comments for all events
+  - Star feedback (starred feedback appears on home/testimonials and admin dashboard)
+  - Edit or delete any feedback
+  - View new/unread feedback (displayed on dashboard)
+  - Move feedback between starred/new/regular
+- **Event Requests:**
+  - View and manage event requests from users
+- **Dashboard:**
+  - See all starred feedback and new feedback at a glance
+  - Quick access to event/category/feedback management
+
+## Features
+- Creative, feminine, celebratory theme
+- Responsive, modern UI
+- Home page: hero, featured events, how it works, testimonials (starred feedback), about
+- All Events: sectioned by category, creative headers/footers
+- Event Details: gallery, info, highlights, feedback, request similar event
+- Admin Dashboard: manage events, categories, feedback, requests; see starred/new feedback
+- Admin authentication (login/logout, session management)
+- (Optional) Social sharing, notifications, calendar integration
+
+## Tech Stack
+- Frontend: React, Tailwind CSS
+- Backend: Spring Boot (REST API), PostgreSQL (optional, for production)
+
+## Workflows
+- **Admin:**
+  - Login → Dashboard → Manage events/categories/feedback/requests
+  - Star/edit/delete feedback; mark events as featured; create/edit categories
+- **Customer:**
+  - Browse events → View details → Submit feedback/request event
+
+## Notes
+- All major user-facing pages themed and visually complete
+- Admin dashboard scaffolded for full feature build-out
+- Backend integration and dynamic data loading pending
+- Real authentication/session management pending
