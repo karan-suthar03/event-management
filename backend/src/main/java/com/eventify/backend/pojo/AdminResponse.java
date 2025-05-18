@@ -1,4 +1,4 @@
-package com.eventify.backend.model;
+package com.eventify.backend.pojo;
 
 public class AdminResponse {
     private String username;

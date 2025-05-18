@@ -1,20 +1,18 @@
 package com.eventify.backend.controller;
 
-import com.eventify.backend.model.AdminLoginRequest;
-import com.eventify.backend.model.AdminResponse;
-import com.eventify.backend.model.AdminRepository;
+import com.eventify.backend.pojo.AdminLoginRequest;
+import com.eventify.backend.pojo.AdminResponse;
+import com.eventify.backend.repository.AdminRepository;
 import com.eventify.backend.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.CrossOrigin;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/auth")
 public class AuthController {
     @Autowired

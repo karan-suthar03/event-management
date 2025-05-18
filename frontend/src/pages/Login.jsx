@@ -8,11 +8,7 @@ const Login = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If already logged in, redirect to admin dashboard
-    const token = localStorage.getItem("admin_jwt");
-    if (token) {
-      navigate("/admin");
-    }
+    // Removed JWT redirect logic
   }, [navigate]);
 
   const handleChange = (e) => {
@@ -30,10 +26,6 @@ const Login = () => {
         body: JSON.stringify(form),
       });
       if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem("admin_jwt", data.token);
-        // Optionally store admin info
-        localStorage.setItem("admin_info", JSON.stringify(data.admin));
         navigate("/admin");
       } else {
         const err = await res.json();

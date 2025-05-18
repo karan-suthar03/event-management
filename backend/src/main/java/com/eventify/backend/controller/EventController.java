@@ -1,12 +1,12 @@
 package com.eventify.backend.controller;
 
-import com.eventify.backend.model.*;
+import com.eventify.backend.entity.*;
+import com.eventify.backend.repository.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,7 +20,6 @@ import java.time.LocalDate;
 import java.util.*;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api")
 public class EventController {
     @Autowired
@@ -31,11 +30,35 @@ public class EventController {
     private EventImageRepository eventImageRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * Example GET /api/categories response:
+     * [
+     *   { "id": 1, "name": "Tech", "emoji": "💻" },
+     *   { "id": 2, "name": "Music", "emoji": "🎵" }
+     * ]
+     */
     @GetMapping("/categories")
     public List<Category> getCategories() {
         return categoryRepository.findAll();
     }
 
+    /**
+     * Example POST /api/categories request body:
+     * {
+     *   "name": "Art",
+     *   "emoji": "🎨"
+     * }
+     *
+     * Example response:
+     * {
+     *   "id": 3,
+     *   "name": "Art",
+     *   "emoji": "🎨"
+     * }
+     *
+     * Example error response:
+     * { "error": "Category already exists" }
+     */
     @PostMapping("/categories")
     public ResponseEntity<?> addCategory(@RequestBody Category category) {
         if (category.getName() == null || category.getEmoji() == null) {
@@ -48,8 +71,67 @@ public class EventController {
         return ResponseEntity.ok(saved);
     }
 
+    /**
+     * Example GET /api/events response:
+     * [
+     *   {
+     *     "id": 1,
+     *     "title": "Tech Conference",
+     *     "category": { "id": 1, "name": "Tech", "emoji": "💻" },
+     *     "date": "2025-06-01",
+     *     "description": "A conference about technology.",
+     *     "highlights": "Keynote, Workshops",
+     *     "organizerNotes": "Bring your laptop.",
+     *     "descriptions": [
+     *       { "title": "Keynote", "description": "Opening speech by CEO" },
+     *       { "title": "Workshop", "description": "Hands-on coding session" }
+     *     ],
+     *     "images": [
+     *       { "id": 10, "url": "/uploads/abc123_image.png" }
+     *     ]
+     *   }
+     * ]
+     */
+    @GetMapping("/events")
+    public List<Event> getAllEvents() {
+        return eventRepository.findAll();
+    }
+
+    /**
+     * Example POST /api/events request (multipart/form-data):
+     *
+     * title: "Tech Conference"
+     * category: "Tech"
+     * date: "2025-06-01"
+     * description: "A conference about technology."
+     * highlights: "Keynote, Workshops"
+     * organizerNotes: "Bring your laptop."
+     * descriptions: '[{"title":"Keynote","description":"Opening speech by CEO"},{"title":"Workshop","description":"Hands-on coding session"}]'
+     * images: (file upload, can attach multiple images)
+     *
+     * Example response:
+     * {
+     *   "id": 1,
+     *   "title": "Tech Conference",
+     *   "category": { "id": 1, "name": "Tech", "emoji": "💻" },
+     *   "date": "2025-06-01",
+     *   "description": "A conference about technology.",
+     *   "highlights": "Keynote, Workshops",
+     *   "organizerNotes": "Bring your laptop.",
+     *   "descriptions": [
+     *     { "title": "Keynote", "description": "Opening speech by CEO" },
+     *     { "title": "Workshop", "description": "Hands-on coding session" }
+     *   ],
+     *   "images": [
+     *     { "id": 10, "url": "/uploads/abc123_image.png" }
+     *   ]
+     * }
+     *
+     * Example error response:
+     * { "error": "Invalid date format" }
+     * { "error": "Invalid descriptions JSON" }
+     */
     @PostMapping("/events")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> addEvent(
             @RequestParam String title,
             @RequestParam String category,
@@ -103,7 +185,15 @@ public class EventController {
             for (MultipartFile file : images) {
                 if (!file.isEmpty()) {
                     try {
-                        String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+                        String extension = "";
+                        String originalName = file.getOriginalFilename();
+                        if (originalName != null) {
+                            int dotIdx = originalName.lastIndexOf('.');
+                            if (dotIdx != -1) {
+                                extension = originalName.substring(dotIdx);
+                            }
+                        }
+                        String fileName = UUID.randomUUID().toString() + extension;
                         Path filePath = Paths.get(uploadDir, fileName);
                         Files.write(filePath, file.getBytes());
                         EventImage img = new EventImage();

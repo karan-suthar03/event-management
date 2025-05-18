@@ -1,6 +1,7 @@
-package com.eventify.backend.model;
+package com.eventify.backend.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "event_images")
@@ -14,6 +15,7 @@ public class EventImage {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id")
+    @JsonIgnore // Prevent event from being serialized in image JSON
     private Event event;
 
     // Getters and setters

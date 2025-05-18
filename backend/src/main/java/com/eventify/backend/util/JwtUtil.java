@@ -7,8 +7,8 @@ import java.util.Date;
 import javax.crypto.SecretKey;
 
 public class JwtUtil {
-    private static final SecretKey SECRET_KEY = Keys.hmacShaKeyFor("my-super-secret-key-which-should-be-long".getBytes());
-    private static final long EXPIRATION_TIME = 60 * 60 * 1000; // 1 hour
+    private static final SecretKey SECRET_KEY = Keys.hmacShaKeyFor("mera naam karan hai aur me karan suthar hu".getBytes());
+    private static final long EXPIRATION_TIME = 60 * 60 * 1000 * 24; // 24 hours
 
     public static String generateToken(String username) {
         return Jwts.builder()

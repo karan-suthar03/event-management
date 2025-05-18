@@ -1,30 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const mockEvents = [
-  {
-    id: 1,
-    title: "Aanya's 1st Birthday Bash",
-    category: "Birthday",
-    date: "2024-03-15",
-    featured: true,
-  },
-  {
-    id: 2,
-    title: "Golden Anniversary Gala",
-    category: "Anniversary",
-    date: "2024-02-10",
-    featured: false,
-  },
-  {
-    id: 3,
-    title: "Spring Celebration Party",
-    category: "Celebration",
-    date: "2024-04-22",
-    featured: false,
-  },
-];
-
 const mockFeedback = [
   {
     id: 1,
@@ -56,20 +32,32 @@ const mockFeedback = [
 ];
 
 const AdminDashboard = () => {
-  const [events, setEvents] = useState(mockEvents);
+  const [events, setEvents] = useState([]);
   const [feedbacks, setFeedbacks] = useState(mockFeedback);
   const [activeTab, setActiveTab] = useState("starred");
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const EVENTS_PER_PAGE = 10;
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Route protection: check for JWT in localStorage
-    const token = localStorage.getItem("admin_jwt");
-    if (!token) {
-      navigate("/login");
-    }
-  }, [navigate]);
+    setLoading(true);
+    setError("");
+    fetch("http://localhost:8080/api/events")
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch events");
+        return res.json();
+      })
+      .then(data => {
+        setEvents(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Could not load events.");
+        setLoading(false);
+      });
+  }, []);
 
   // Event actions
   const handleFeature = (id) => {
@@ -118,33 +106,39 @@ const AdminDashboard = () => {
             <button className="px-4 py-1 bg-pink-400 text-white rounded shadow" onClick={handleAdd}>+ Add Event</button>
             <button className="px-4 py-1 bg-blue-400 text-white rounded shadow" onClick={() => alert('Go to All Events page (implement navigation)')}>Go to All Events</button>
           </div>
-          <table className="w-full text-left mb-2">
-            <thead>
-              <tr className="bg-pink-100">
-                <th className="py-2 px-2">Title</th>
-                <th className="py-2 px-2">Category</th>
-                <th className="py-2 px-2">Date</th>
-                <th className="py-2 px-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedEvents.length === 0 ? (
-                <tr><td colSpan="4" className="text-center py-4 text-pink-400">No events found.</td></tr>
-              ) : (
-                pagedEvents.map(ev => (
-                  <tr key={ev.id} className="border-b hover:bg-pink-50">
-                    <td className="py-2 px-2">{ev.title}</td>
-                    <td className="py-2 px-2">{ev.category}</td>
-                    <td className="py-2 px-2">{ev.date}</td>
-                    <td className="py-2 px-2 flex gap-2">
-                      <button className="px-2 py-1 bg-pink-400 text-white rounded text-xs" onClick={() => handleEdit(ev.id)}>Edit</button>
-                      <button className="px-2 py-1 bg-yellow-300 text-pink-700 rounded text-xs" onClick={() => handleDelete(ev.id)}>Delete</button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          {loading ? (
+            <div className="text-center text-pink-400">Loading events...</div>
+          ) : error ? (
+            <div className="text-center text-red-500">{error}</div>
+          ) : (
+            <table className="w-full text-left mb-2">
+              <thead>
+                <tr className="bg-pink-100">
+                  <th className="py-2 px-2">Title</th>
+                  <th className="py-2 px-2">Category</th>
+                  <th className="py-2 px-2">Date</th>
+                  <th className="py-2 px-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedEvents.length === 0 ? (
+                  <tr><td colSpan="4" className="text-center py-4 text-pink-400">No events found.</td></tr>
+                ) : (
+                  pagedEvents.map(ev => (
+                    <tr key={ev.id} className="border-b hover:bg-pink-50">
+                      <td className="py-2 px-2">{ev.title}</td>
+                      <td className="py-2 px-2">{typeof ev.category === 'object' ? ev.category.name : ev.category}</td>
+                      <td className="py-2 px-2">{ev.date}</td>
+                      <td className="py-2 px-2 flex gap-2">
+                        <button className="px-2 py-1 bg-pink-400 text-white rounded text-xs" onClick={() => handleEdit(ev.id)}>Edit</button>
+                        <button className="px-2 py-1 bg-yellow-300 text-pink-700 rounded text-xs" onClick={() => handleDelete(ev.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
           <div className="flex gap-2 mt-2">
             {page > 1 && <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => setPage(page - 1)}>Previous</button>}
             {hasMore && <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => setPage(page + 1)}>Next</button>}

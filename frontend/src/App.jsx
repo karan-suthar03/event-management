@@ -11,11 +11,6 @@ import AdminDashboard from './pages/AdminDashboard'
 import AddEvent from './pages/AddEvent'
 
 function App() {
-  const handleLogout = () => {
-    localStorage.removeItem("admin_jwt");
-    window.location.href = "/login";
-  };
-
   return (
     <Router>
       <div>
@@ -31,9 +26,6 @@ function App() {
             <a href="/events" className="text-lg font-semibold text-pink-600 hover:text-pink-800 transition-colors duration-150 underline-offset-4 hover:underline">All Events</a>
           </nav>
         </header>
-        {localStorage.getItem("admin_jwt") && (
-          <button onClick={handleLogout} className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded z-50">Logout</button>
-        )}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/events" element={<AllEvents />} />

@@ -4,14 +4,6 @@ import { useNavigate } from "react-router-dom";
 const AddEvent = () => {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Route protection: check for JWT in localStorage
-    const token = localStorage.getItem("admin_jwt");
-    if (!token) {
-      navigate("/login");
-    }
-  }, [navigate]);
-
   const [form, setForm] = useState({
     title: "",
     category: "",
@@ -134,12 +126,10 @@ const AddEvent = () => {
     setCategoryLoading(true);
     setCategoryError("");
     try {
-      const token = localStorage.getItem("admin_jwt");
       const res = await fetch("http://localhost:8080/api/categories", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify(newCategory)
       });
@@ -169,7 +159,6 @@ const AddEvent = () => {
     setError("");
     try {
       // Prepare form data
-      const token = localStorage.getItem("admin_jwt");
       const eventData = {
         ...form,
         descriptions,
@@ -191,9 +180,6 @@ const AddEvent = () => {
       });
       const res = await fetch("http://localhost:8080/api/events", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
         body: fd
       });
       if (res.ok) {

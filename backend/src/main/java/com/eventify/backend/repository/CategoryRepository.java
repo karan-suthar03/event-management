@@ -1,5 +1,6 @@
-package com.eventify.backend.model;
+package com.eventify.backend.repository;
 
+import com.eventify.backend.entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
