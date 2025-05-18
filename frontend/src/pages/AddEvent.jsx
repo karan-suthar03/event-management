@@ -1,6 +1,17 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const AddEvent = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Route protection: check for JWT in localStorage
+    const token = localStorage.getItem("admin_jwt");
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
+
   const [form, setForm] = useState({
     title: "",
     category: "",
@@ -16,14 +27,34 @@ const AddEvent = () => {
   ]);
   const [images, setImages] = useState([]);
   const fileInputRef = useRef();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [categories, setCategories] = useState([
-    { name: "Birthday", emoji: "🎂" },
-    { name: "Anniversary", emoji: "💍" },
-    { name: "Celebration", emoji: "🎉" }
-  ]);
+  const [categories, setCategories] = useState([]);
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryError, setCategoryError] = useState("");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: "", emoji: "" });
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setCategoryLoading(true);
+      setCategoryError("");
+      try {
+        const res = await fetch("http://localhost:8080/api/categories");
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data);
+        } else {
+          setCategoryError("Failed to load categories");
+        }
+      } catch (e) {
+        setCategoryError("Network error loading categories");
+      }
+      setCategoryLoading(false);
+    };
+    fetchCategories();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -94,29 +125,99 @@ const AddEvent = () => {
     const { name, value } = e.target;
     setNewCategory(c => ({ ...c, [name]: value }));
   };
-  const handleAddCategory = (e) => {
+  const handleAddCategory = async (e) => {
     e.preventDefault();
     if (!newCategory.name || !newCategory.emoji) {
       alert("Both name and emoji are required.");
       return;
     }
-    setCategories(cats => [...cats, { ...newCategory }]);
-    setForm(f => ({ ...f, category: newCategory.name }));
-    setNewCategory({ name: "", emoji: "" });
-    setShowCategoryModal(false);
+    setCategoryLoading(true);
+    setCategoryError("");
+    try {
+      const token = localStorage.getItem("admin_jwt");
+      const res = await fetch("http://localhost:8080/api/categories", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(newCategory)
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setCategories(cats => [...cats, created]);
+        setForm(f => ({ ...f, category: created.name }));
+        setNewCategory({ name: "", emoji: "" });
+        setShowCategoryModal(false);
+      } else {
+        const err = await res.json();
+        setCategoryError(err.error || "Failed to add category");
+      }
+    } catch (e) {
+      setCategoryError("Network error adding category");
+    }
+    setCategoryLoading(false);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title || !form.category || !form.date) {
       alert("Title, category, and date are required.");
       return;
     }
-    // Here you would send the form data, descriptions, and images to the backend
-    alert("Event added! (Implement backend integration)");
-    setForm({ title: "", category: "", date: "", description: "", highlights: "", images: [], organizerNotes: "" });
-    setDescriptions([{ title: "", description: "" }]);
-    setImages([]);
+    setLoading(true);
+    setError("");
+    try {
+      // Prepare form data
+      const token = localStorage.getItem("admin_jwt");
+      const eventData = {
+        ...form,
+        descriptions,
+        highlights: form.highlights,
+        organizerNotes: form.organizerNotes,
+        // images will be handled below
+      };
+      // Prepare images as FormData
+      const fd = new FormData();
+      Object.entries(eventData).forEach(([key, value]) => {
+        if (key === "descriptions") {
+          fd.append("descriptions", JSON.stringify(value));
+        } else if (key !== "images") {
+          fd.append(key, value);
+        }
+      });
+      images.forEach((img, idx) => {
+        fd.append("images", img);
+      });
+      const res = await fetch("http://localhost:8080/api/events", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: fd
+      });
+      if (res.ok) {
+        alert("Event added!");
+        setForm({ title: "", category: "", date: "", description: "", highlights: "", images: [], organizerNotes: "" });
+        setDescriptions([{ title: "", description: "" }]);
+        setImages([]);
+      } else {
+        let err;
+        try {
+          err = await res.json();
+        } catch {
+          err = { error: "Failed to add event" };
+        }
+        if (err && err.error && err.error.toLowerCase().includes("category")) {
+          setError("Category not found. Please select or create a valid category.");
+        } else {
+          setError(err.error || "Failed to add event");
+        }
+      }
+    } catch (e) {
+      setError("Network error");
+    }
+    setLoading(false);
   };
 
   return (
@@ -129,14 +230,15 @@ const AddEvent = () => {
           <div>
             <label className="block font-semibold text-pink-700 mb-1">Category</label>
             <div className="flex gap-2 items-center">
-              <select name="category" value={form.category} onChange={handleCategorySelect} className="border rounded px-3 py-2 flex-1">
-                <option value="">Select Category</option>
+              <select name="category" value={form.category} onChange={handleCategorySelect} className="border rounded px-3 py-2 flex-1" disabled={categoryLoading}>
+                <option value="">{categoryLoading ? "Loading..." : "Select Category"}</option>
                 {categories.map((cat, idx) => (
-                  <option key={idx} value={cat.name}>{cat.emoji} {cat.name}</option>
+                  <option key={cat.id || cat.name} value={cat.name}>{cat.emoji} {cat.name}</option>
                 ))}
               </select>
-              <button type="button" className="px-3 py-1 bg-pink-200 text-pink-700 rounded" onClick={() => setShowCategoryModal(true)}>+ New</button>
+              <button type="button" className="px-3 py-1 bg-pink-200 text-pink-700 rounded" onClick={() => setShowCategoryModal(true)} disabled={categoryLoading}>+ New</button>
             </div>
+            {categoryError && <div className="text-red-600 text-sm mt-1">{categoryError}</div>}
           </div>
           {/* Modal for new category */}
           {showCategoryModal && (
@@ -145,9 +247,10 @@ const AddEvent = () => {
                 <h2 className="text-lg font-bold text-pink-700 mb-2">Add New Category</h2>
                 <input name="emoji" value={newCategory.emoji} onChange={handleNewCategoryChange} placeholder="Emoji (e.g. 🎈)" className="border rounded px-2 py-1" maxLength={2} />
                 <input name="name" value={newCategory.name} onChange={handleNewCategoryChange} placeholder="Category Name" className="border rounded px-2 py-1" />
+                {categoryError && <div className="text-red-600 text-sm">{categoryError}</div>}
                 <div className="flex gap-2 mt-2">
-                  <button className="px-3 py-1 bg-pink-500 text-white rounded" onClick={handleAddCategory}>Add</button>
-                  <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => setShowCategoryModal(false)}>Cancel</button>
+                  <button className="px-3 py-1 bg-pink-500 text-white rounded" onClick={handleAddCategory} disabled={categoryLoading}>Add</button>
+                  <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => { setShowCategoryModal(false); setCategoryError(""); }}>Cancel</button>
                 </div>
               </div>
             </div>
@@ -213,6 +316,8 @@ const AddEvent = () => {
           <textarea name="organizerNotes" value={form.organizerNotes} onChange={handleChange} placeholder="Organizer Notes (optional)" className="border rounded px-3 py-2 min-h-[40px]" />
           <button type="submit" className="px-4 py-2 bg-pink-500 text-white rounded font-bold mt-2">Add Event</button>
         </form>
+        {loading && <p className="text-pink-700">Submitting...</p>}
+        {error && <p className="text-red-700">{error}</p>}
       </div>
     </div>
   );

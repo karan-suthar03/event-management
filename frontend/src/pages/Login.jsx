@@ -1,28 +1,49 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const [form, setForm] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If already logged in, redirect to admin dashboard
+    const token = localStorage.getItem("admin_jwt");
+    if (token) {
+      navigate("/admin");
+    }
+  }, [navigate]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    // Simulate login (replace with real API call later)
-    setTimeout(() => {
-      if (form.username === "admin" && form.password === "password") {
-        // Redirect to admin dashboard (replace with real logic)
-        window.location.href = "/admin";
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem("admin_jwt", data.token);
+        // Optionally store admin info
+        localStorage.setItem("admin_info", JSON.stringify(data.admin));
+        navigate("/admin");
       } else {
-        setError("Invalid username or password");
+        const err = await res.json();
+        setError(err.error || "Login failed");
         setLoading(false);
       }
-    }, 1000);
+    } catch (e) {
+      setError("Network error");
+      setLoading(false);
+    }
   };
 
   return (

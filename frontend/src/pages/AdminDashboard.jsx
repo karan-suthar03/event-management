@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const mockEvents = [
@@ -62,6 +62,14 @@ const AdminDashboard = () => {
   const [page, setPage] = useState(1);
   const EVENTS_PER_PAGE = 10;
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Route protection: check for JWT in localStorage
+    const token = localStorage.getItem("admin_jwt");
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
 
   // Event actions
   const handleFeature = (id) => {

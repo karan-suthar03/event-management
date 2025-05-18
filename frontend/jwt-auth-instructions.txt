@@ -1,89 +1,76 @@
-# JWT Admin Auth API Instructions for Event Management App
+# Backend Instructions for Event Creation API (Spring Boot)
 
-## 1. API Endpoints (Spring Boot)
+## /api/categories endpoint
 
-### a. Login
-- POST /api/auth/login
-- Request Body:
-  {
-    "username": "admin",
-    "password": "yourpassword"
-  }
-- Response (success):
-  {
-    "token": "<JWT_TOKEN>",
-    "admin": { "username": "admin", "name": "Ananya" }
-  }
-- Response (failure):
-  {
-    "error": "Invalid credentials"
-  }
-- Status: 200 (success), 401 (failure)
+### GET /api/categories
+- Returns a list of all categories in the database.
+- Example response:
+[
+  { "id": 1, "name": "Birthday", "emoji": "🎂" },
+  { "id": 2, "name": "Anniversary", "emoji": "💍" }
+]
 
-### b. Get Current Admin (Check if logged in)
-- GET /api/auth/me
-- Headers: Authorization: Bearer <JWT_TOKEN>
-- Response (if valid):
-  {
-    "username": "admin",
-    "name": "Ananya"
-  }
-- Status: 200 (success), 401 (if not logged in/invalid token)
+### POST /api/categories
+- Adds a new category.
+- Request body:
+  { "name": "New Category", "emoji": "🎈" }
+- Response:
+  - On success: the created category object.
+  - On error:
+    { "error": "Missing name or emoji" }
+    or
+    { "error": "Category already exists" }
 
-### c. Logout
-- (Optional for JWT) JWT is stateless, so logout is handled on the frontend by deleting the token.
-- If you use refresh tokens or a token blacklist, you can add:
-  - POST /api/auth/logout (invalidate token server-side)
+- Used to fetch all categories (GET) or add a new one (POST).
 
-## 2. JWT Details
-- JWT Payload Example:
-  {
-    "sub": "admin",
-    "role": "ADMIN",
-    "exp": 1716123456
-  }
-- JWT is signed with a secret key on the backend.
-- Expiration: Set a reasonable expiry (e.g., 1 hour).
+## 1. Event Creation Endpoint
+- **POST /api/events**
+- **Auth:** Requires JWT in `Authorization: Bearer <token>` header (admin only)
+- **Consumes:** multipart/form-data (for images)
 
-## 3. Frontend Flow (React)
-- On login, send credentials to /api/auth/login.
-- On success, store the JWT in localStorage (or a secure cookie if you want extra security).
-- For all admin/protected API calls, send the JWT in the Authorization header:
-  Authorization: Bearer <JWT_TOKEN>
-- On app load, check for a JWT and call /api/auth/me to verify it's still valid.
-- On logout, remove the JWT from storage.
+## 2. Request Structure
+- **Form fields:**
+  - `title` (String, required)
+  - `category` (String, required, must match a category in the database)
+  - `date` (String, required, e.g. 2025-06-10)
+  - `description` (String, main description)
+  - `highlights` (String, comma separated)
+  - `organizerNotes` (String, optional)
+  - `descriptions` (String, JSON array of objects: [{title, description}])
+  - `images` (0 or more image files, use @RequestParam MultipartFile[] images)
 
-## 4. Security Best Practices
-- Always use HTTPS in production.
-- Never store sensitive data in JWT (only user id/role, not password).
-- Set a short expiry and optionally use refresh tokens for longer sessions.
-- Validate JWT signature and expiry on every protected backend endpoint.
-- Hash passwords in your database (e.g., BCrypt).
+## 3. Category Handling
+- Categories must be fetched from the database in real time.
+- When adding an event, validate that the submitted category exists in the database.
+- Return 400 if the category does not exist.
 
-## 5. Example API Responses
-### Login Success
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "admin": {
-    "username": "admin",
-    "name": "Ananya"
-  }
+## 4. Controller Example
+```java
+@PostMapping("/api/events")
+@PreAuthorize("hasRole('ADMIN')")
+public ResponseEntity<?> addEvent(
+    @RequestParam String title,
+    @RequestParam String category,
+    @RequestParam String date,
+    @RequestParam(required = false) String description,
+    @RequestParam(required = false) String highlights,
+    @RequestParam(required = false) String organizerNotes,
+    @RequestParam(required = false) String descriptions, // JSON string
+    @RequestParam(required = false) MultipartFile[] images
+) {
+    // 1. Parse descriptions JSON to List<DescriptionSection>
+    // 2. Validate category exists
+    // 3. Save event to DB
+    // 4. Save images (e.g. to disk/cloud, store URLs in DB)
+    // 5. Return event info or success
 }
-### Login Failure
-{
-  "error": "Invalid credentials"
-}
-### /me Success
-{
-  "username": "admin",
-  "name": "Ananya"
-}
-### /me Failure (invalid/expired token)
-{
-  "error": "Unauthorized"
-}
+```
 
-## 6. Backend (Spring Boot) Hints
-- Use spring-boot-starter-security and jjwt or java-jwt for JWT handling.
-- On login, authenticate user, generate JWT, and return it.
-- For protected endpoints, use a JWT filter to validate the token.
+## 5. Notes
+- Always validate category existence on event creation.
+- The frontend should fetch categories from `/api/categories` before rendering the event form.
+- Use @RequestParam for all fields (including descriptions as JSON string).
+- Use @RequestPart if you want to receive a POJO for event and files separately.
+- Parse descriptions JSON string to a List in the controller.
+- Validate and sanitize all inputs.
+- Return appropriate status codes.
