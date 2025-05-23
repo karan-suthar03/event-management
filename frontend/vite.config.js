@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     allowedHosts: [
-      'phenomenon-textiles-moss-management.trycloudflare.com',
+      'mouse-fruit-relation-payment.trycloudflare.com',
       // Add more allowed hosts as needed
     ],
   },

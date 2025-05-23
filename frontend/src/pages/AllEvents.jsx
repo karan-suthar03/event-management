@@ -14,13 +14,12 @@ const AllEvents = () => {
         const res = await fetch("http://localhost:8080/api/events");
         if (!res.ok) throw new Error("Failed to fetch events");
         const events = await res.json();
-        // Group by category
         const grouped = {};
         events.forEach(ev => {
-          if (!grouped[ev.category]) grouped[ev.category] = [];
-          grouped[ev.category].push(ev);
+          const catName = typeof ev.category === "object" && ev.category !== null ? ev.category.name : ev.category;
+          if (!grouped[catName]) grouped[catName] = [];
+          grouped[catName].push(ev);
         });
-        // Optionally fetch categories for emoji/color
         const catRes = await fetch("http://localhost:8080/api/categories");
         const categories = catRes.ok ? await catRes.json() : [];
         const sections = Object.entries(grouped).map(([cat, events]) => {
@@ -29,7 +28,21 @@ const AllEvents = () => {
             title: cat,
             emoji: catObj.emoji || "🎉",
             color: "from-pink-100 via-pink-50 to-yellow-50",
-            events
+            events: events.map(ev => ({
+              ...ev,
+              images: Array.isArray(ev.images)
+                ? ev.images.map(img =>
+                    typeof img === "object" && img.url
+                      ? (img.url.startsWith("/uploads/")
+                          ? `http://localhost:8080${img.url}`
+                          : img.url)
+                      : img
+                  )
+                : [],
+              highlights: Array.isArray(ev.highlights)
+                ? ev.highlights
+                : (typeof ev.highlights === "string" ? ev.highlights.split(/,\s*/) : [])
+            }))
           };
         });
         setSections(sections);

@@ -33,6 +33,9 @@ public class Event {
     @Column
     private String organizerNotes;
 
+    @Column(nullable = true)
+    private String location;
+
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "event_descriptions", joinColumns = @JoinColumn(name = "event_id"))
     private List<DescriptionSection> descriptions = new ArrayList<>();
@@ -55,6 +58,8 @@ public class Event {
     public void setHighlights(String highlights) { this.highlights = highlights; }
     public String getOrganizerNotes() { return organizerNotes; }
     public void setOrganizerNotes(String organizerNotes) { this.organizerNotes = organizerNotes; }
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
     public List<DescriptionSection> getDescriptions() { return descriptions; }
     public void setDescriptions(List<DescriptionSection> descriptions) { this.descriptions = descriptions; }
     public List<EventImage> getImages() { return images; }

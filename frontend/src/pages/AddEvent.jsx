@@ -8,6 +8,7 @@ const AddEvent = () => {
     title: "",
     category: "",
     date: "",
+    location: "",
     description: "",
     highlights: "",
     images: [],
@@ -70,7 +71,6 @@ const AddEvent = () => {
     setForm(f => ({ ...f, images: newImages.filter(Boolean) }));
   };
 
-  // Description section logic
   const handleDescChange = (idx, field, value) => {
     setDescriptions(descs => descs.map((d, i) => i === idx ? { ...d, [field]: value } : d));
   };
@@ -90,7 +90,6 @@ const AddEvent = () => {
     });
   };
 
-  // Image section logic
   const handleImageFile = (e) => {
     const files = Array.from(e.target.files);
     setImages(imgs => [...imgs, ...files]);
@@ -109,7 +108,6 @@ const AddEvent = () => {
     });
   };
 
-  // Category logic
   const handleCategorySelect = (e) => {
     setForm(f => ({ ...f, category: e.target.value }));
   };
@@ -151,22 +149,19 @@ const AddEvent = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.title || !form.category || !form.date) {
-      alert("Title, category, and date are required.");
+    if (!form.title || !form.category || !form.date || !form.location) {
+      alert("Title, category, date, and location are required.");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      // Prepare form data
       const eventData = {
         ...form,
         descriptions,
         highlights: form.highlights,
         organizerNotes: form.organizerNotes,
-        // images will be handled below
       };
-      // Prepare images as FormData
       const fd = new FormData();
       Object.entries(eventData).forEach(([key, value]) => {
         if (key === "descriptions") {
@@ -184,7 +179,7 @@ const AddEvent = () => {
       });
       if (res.ok) {
         alert("Event added!");
-        setForm({ title: "", category: "", date: "", description: "", highlights: "", images: [], organizerNotes: "" });
+        setForm({ title: "", category: "", date: "", location: "", description: "", highlights: "", images: [], organizerNotes: "" });
         setDescriptions([{ title: "", description: "" }]);
         setImages([]);
       } else {
@@ -212,7 +207,6 @@ const AddEvent = () => {
         <h1 className="text-2xl font-extrabold text-pink-700 mb-6">Add Completed Event</h1>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <input name="title" value={form.title} onChange={handleChange} placeholder="Event Title" className="border rounded px-3 py-2" />
-          {/* Category Selector */}
           <div>
             <label className="block font-semibold text-pink-700 mb-1">Category</label>
             <div className="flex gap-2 items-center">
@@ -226,7 +220,6 @@ const AddEvent = () => {
             </div>
             {categoryError && <div className="text-red-600 text-sm mt-1">{categoryError}</div>}
           </div>
-          {/* Modal for new category */}
           {showCategoryModal && (
             <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
               <div className="bg-white rounded-xl p-6 border-2 border-pink-100 flex flex-col gap-3 min-w-[300px]">
@@ -242,12 +235,11 @@ const AddEvent = () => {
             </div>
           )}
           <input name="date" type="date" value={form.date} onChange={handleChange} className="border rounded px-3 py-2" />
-          {/* Main Description */}
+          <input name="location" value={form.location} onChange={handleChange} placeholder="Location" className="border rounded px-3 py-2" />
           <div>
             <label className="block font-semibold text-pink-700 mb-1">Main Description</label>
             <textarea name="description" value={form.description} onChange={handleChange} placeholder="Event Description" className="border rounded px-3 py-2 min-h-[60px] w-full" />
           </div>
-          {/* Additional Descriptions */}
           <div>
             <label className="block font-semibold text-pink-700 mb-1">Additional Sections</label>
             {descriptions.map((desc, idx) => (
@@ -274,9 +266,7 @@ const AddEvent = () => {
             ))}
             <button type="button" className="px-3 py-1 bg-pink-200 text-pink-700 rounded" onClick={addDescription}>+ Add Section</button>
           </div>
-          {/* Highlights */}
           <textarea name="highlights" value={form.highlights} onChange={handleChange} placeholder="Highlights (comma separated)" className="border rounded px-3 py-2 min-h-[40px]" />
-          {/* Images */}
           <div>
             <label className="block font-semibold text-pink-700 mb-1">Event Images</label>
             <input
@@ -298,7 +288,6 @@ const AddEvent = () => {
               ))}
             </div>
           </div>
-          {/* Organizer Notes */}
           <textarea name="organizerNotes" value={form.organizerNotes} onChange={handleChange} placeholder="Organizer Notes (optional)" className="border rounded px-3 py-2 min-h-[40px]" />
           <button type="submit" className="px-4 py-2 bg-pink-500 text-white rounded font-bold mt-2">Add Event</button>
         </form>

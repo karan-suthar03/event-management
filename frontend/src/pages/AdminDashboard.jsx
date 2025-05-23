@@ -44,7 +44,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     setLoading(true);
     setError("");
-    fetch("http://localhost:8080/api/events")
+    fetch("http://localhost:8080/api/events/recent")
       .then(res => {
         if (!res.ok) throw new Error("Failed to fetch events");
         return res.json();
@@ -59,7 +59,6 @@ const AdminDashboard = () => {
       });
   }, []);
 
-  // Event actions
   const handleFeature = (id) => {
     setEvents(events.map(ev => ev.id === id ? { ...ev, featured: !ev.featured } : ev));
   };
@@ -72,15 +71,12 @@ const AdminDashboard = () => {
     navigate("/admin/add-event");
   };
   const handleEdit = (id) => {
-    // Redirect to event edit page (placeholder)
-    alert(`Redirect to Edit Event page for event #${id} (implement navigation)`);
+    navigate(`/admin/edit-event/${id}`);
   };
 
-  // Pagination logic
   const pagedEvents = events.slice((page - 1) * EVENTS_PER_PAGE, page * EVENTS_PER_PAGE);
   const hasMore = events.length > page * EVENTS_PER_PAGE;
 
-  // Feedback actions (unchanged)
   const filteredFeedbacks = feedbacks.filter(fb =>
     activeTab === "all" ? true : activeTab === "starred" ? fb.starred : fb.status === "new"
   );
@@ -99,7 +95,6 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-pink-50 py-8 px-2">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-xl border-2 border-pink-100 p-8">
         <h1 className="text-3xl font-extrabold text-pink-700 mb-6">Admin Dashboard</h1>
-        {/* Events Section */}
         <section className="mb-10">
           <div className="flex items-center gap-4 mb-4">
             <h2 className="text-xl font-bold text-pink-700">Completed Events</h2>
@@ -144,7 +139,6 @@ const AdminDashboard = () => {
             {hasMore && <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => setPage(page + 1)}>Next</button>}
           </div>
         </section>
-        {/* Feedback Section */}
         <section>
           <div className="flex gap-2 mb-4">
             <button onClick={() => setActiveTab("starred")} className={`px-3 py-1 rounded font-bold text-sm ${activeTab === "starred" ? "bg-pink-400 text-white" : "bg-pink-100 text-pink-600"}`}>Starred</button>

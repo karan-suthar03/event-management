@@ -1,7 +1,6 @@
 import React from "react";
 import EventCard from "../components/EventCard";
 
-// Mock event data
 const events = [
   {
     id: 1,
@@ -48,7 +47,6 @@ const Home = () => {
   const bestEvents = events.filter((event) => event.best);
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-100 to-yellow-50 p-8">
-      {/* Hero Section */}
       <section className="mb-16 flex flex-col md:flex-row items-center justify-between gap-10 bg-gradient-to-r from-pink-200 via-fuchsia-100 to-yellow-100 rounded-3xl p-10 shadow-2xl border-4 border-pink-100 relative overflow-hidden">
         <div className="flex-1 z-10">
           <h1 className="text-5xl md:text-6xl font-extrabold text-pink-700 mb-6 drop-shadow-lg font-cursive">Make Every Moment Magical</h1>
@@ -61,8 +59,6 @@ const Home = () => {
         <div className="absolute -top-10 -left-10 w-40 h-40 bg-pink-200 rounded-full opacity-30 blur-2xl animate-pulse"></div>
         <div className="absolute -bottom-10 -right-10 w-60 h-60 bg-yellow-200 rounded-full opacity-20 blur-2xl animate-pulse"></div>
       </section>
-
-      {/* Best Events Section */}
       <section>
         <h2 className="text-4xl font-extrabold mb-8 text-pink-700 font-cursive flex items-center gap-2"><span role='img' aria-label='star'>🌟</span> Featured Events</h2>
         {bestEvents.length === 0 ? (
@@ -77,8 +73,6 @@ const Home = () => {
           </div>
         )}
       </section>
-
-      {/* How It Works Section */}
       <section className="mt-20 bg-gradient-to-r from-pink-100 via-yellow-50 to-pink-50 rounded-2xl shadow-lg p-10 border-2 border-pink-100">
         <h3 className="text-3xl font-bold mb-8 text-pink-700 font-cursive flex items-center gap-2"><span role='img' aria-label='sparkles'>✨</span> How It Works</h3>
         <div className="grid md:grid-cols-3 gap-10">
@@ -99,8 +93,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      {/* Feedback Section */}
       <section className="mt-20">
         <h3 className="text-3xl font-bold mb-8 text-pink-700 font-cursive flex items-center gap-2"><span role='img' aria-label='heart'>💖</span> What People Say</h3>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
@@ -121,8 +113,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      {/* About Section */}
       <section className="mt-20 bg-pink-100 rounded-3xl shadow-2xl p-10 border-4 border-pink-200">
         <h3 className="text-3xl font-bold mb-6 text-pink-700 font-cursive flex items-center gap-2">
           <span role="img" aria-label="party">🎉</span> About Eventify

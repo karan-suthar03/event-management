@@ -18,6 +18,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @RestController
 @RequestMapping("/api")
@@ -94,7 +97,27 @@ public class EventController {
      */
     @GetMapping("/events")
     public List<Event> getAllEvents() {
-        return eventRepository.findAll();
+        List<Event> events = eventRepository.findAll();
+        for (Event event : events) {
+            if (event.getImages() != null) {
+                event.getImages().sort(Comparator.comparing(img -> img.getOrder() != null ? img.getOrder() : Integer.MAX_VALUE));
+            }
+        }
+        return events;
+    }
+
+    @GetMapping("/events/recent")
+    public List<Event> getRecentEvents() {
+        List<Event> events = eventRepository.findAll().stream()
+                .sorted(Comparator.comparing(Event::getDate).reversed())
+                .limit(10)
+                .toList();
+        for (Event event : events) {
+            if (event.getImages() != null) {
+                event.getImages().sort(Comparator.comparing(img -> img.getOrder() != null ? img.getOrder() : Integer.MAX_VALUE));
+            }
+        }
+        return events;
     }
 
     /**
@@ -107,6 +130,7 @@ public class EventController {
      * highlights: "Keynote, Workshops"
      * organizerNotes: "Bring your laptop."
      * descriptions: '[{"title":"Keynote","description":"Opening speech by CEO"},{"title":"Workshop","description":"Hands-on coding session"}]'
+     * location: "Conference Center, City"
      * images: (file upload, can attach multiple images)
      *
      * Example response:
@@ -122,6 +146,7 @@ public class EventController {
      *     { "title": "Keynote", "description": "Opening speech by CEO" },
      *     { "title": "Workshop", "description": "Hands-on coding session" }
      *   ],
+     *   "location": "Conference Center, City",
      *   "images": [
      *     { "id": 10, "url": "/uploads/abc123_image.png" }
      *   ]
@@ -140,6 +165,7 @@ public class EventController {
             @RequestParam(required = false) String highlights,
             @RequestParam(required = false) String organizerNotes,
             @RequestParam(required = false) String descriptions, // JSON string
+            @RequestParam(required = false) String location,
             @RequestParam(required = false) MultipartFile[] images,
             HttpServletRequest request
     ) {
@@ -176,13 +202,15 @@ public class EventController {
         event.setHighlights(highlights);
         event.setOrganizerNotes(organizerNotes);
         event.setDescriptions(descList);
+        event.setLocation(location);
         event = eventRepository.save(event);
         // 5. Save images
         List<EventImage> imageEntities = new ArrayList<>();
         if (images != null) {
-            String uploadDir = "uploads/";
+            String uploadDir = "src/main/resources/static/uploads/";
             new File(uploadDir).mkdirs();
-            for (MultipartFile file : images) {
+            for (int i = 0; i < images.length; i++) {
+                MultipartFile file = images[i];
                 if (!file.isEmpty()) {
                     try {
                         String extension = "";
@@ -199,6 +227,7 @@ public class EventController {
                         EventImage img = new EventImage();
                         img.setUrl("/uploads/" + fileName);
                         img.setEvent(event);
+                        img.setOrder(i); // Set order based on upload order
                         imageEntities.add(img);
                     } catch (IOException e) {
                         // skip this image
@@ -209,6 +238,44 @@ public class EventController {
             event.setImages(imageEntities);
         }
         // 6. Return event info
+        // Ensure images are sorted by order in the response
+        if (event.getImages() != null) {
+            event.getImages().sort(Comparator.comparing(EventImage::getOrder));
+        }
         return ResponseEntity.ok(event);
+    }
+
+    /**
+     * Example GET /api/events/{id} response:
+     * {
+     *   "id": 1,
+     *   "title": "Tech Conference",
+     *   "category": { "id": 1, "name": "Tech", "emoji": "💻" },
+     *   "date": "2025-06-01",
+     *   "description": "A conference about technology.",
+     *   "highlights": "Keynote, Workshops",
+     *   "organizerNotes": "Bring your laptop.",
+     *   "descriptions": [
+     *     { "title": "Keynote", "description": "Opening speech by CEO" },
+     *     { "title": "Workshop", "description": "Hands-on coding session" }
+     *   ],
+     *   "images": [
+     *     { "id": 10, "url": "/api/images/abc123_image.png" }
+     *   ]
+     * }
+     *
+     * Example error response:
+     * { "error": "Event not found" }
+     */
+    @GetMapping("/events/{id}")
+    public ResponseEntity<?> getEventById(@PathVariable Long id) {
+        return eventRepository.findById(id)
+                .map(event -> {
+                    if (event.getImages() != null) {
+                        event.getImages().sort(Comparator.comparing(img -> img.getOrder() != null ? img.getOrder() : Integer.MAX_VALUE));
+                    }
+                    return ResponseEntity.ok((Object) event);
+                })
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Event not found")));
     }
 }

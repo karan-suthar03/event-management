@@ -9,6 +9,7 @@ import EventDetails from './pages/EventDetails'
 import Login from './pages/Login'
 import AdminDashboard from './pages/AdminDashboard'
 import AddEvent from './pages/AddEvent'
+import EditEvent from './pages/EditEvent'
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/add-event" element={<AddEvent />} />
+          <Route path="/admin/edit-event/:id" element={<EditEvent />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
