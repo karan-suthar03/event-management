@@ -1,128 +1,373 @@
-import React from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { 
+  HiOutlineCalendar, 
+  HiOutlineSparkles, 
+  HiCheckCircle, 
+  HiStar, 
+  HiGift, 
+  HiHeart, 
+  HiArrowPath,
+  HiPlayCircle,
+  HiUserGroup,
+  HiChatBubbleLeftRight,
+  HiPhone
+} from "react-icons/hi2";
 import EventCard from "../components/EventCard";
+import RequestOfferingModal from "../components/RequestOfferingModal";
+import PublicOfferingCard from "../components/PublicOfferingCard";
+import OfferingCarousel from "../components/OfferingCarousel";
+import apiService from "../utils/apiService";
 
-const events = [
-  {
-    id: 1,
-    title: "Music Fest 2025",
-    description: "A grand music festival with top artists.",
-    date: "2025-06-10",
-    location: "City Arena",
-    images: [
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
-      "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=400&q=80",
-      "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80"
-    ],
-    best: true,
-  },
-  {
-    id: 2,
-    title: "Tech Expo",
-    description: "Showcasing the latest in technology and innovation.",
-    date: "2025-07-05",
-    location: "Expo Center",
-    images: [
-      "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=400&q=80",
-      "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80",
-      "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=400&q=80"
-    ],
-    best: true,
-  },
-  {
-    id: 3,
-    title: "Food Carnival",
-    description: "Taste dishes from around the world.",
-    date: "2025-08-15",
-    location: "Central Park",
-    images: [
-      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80",
-      "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=400&q=80",
-      "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=400&q=80"
-    ],
-    best: false,
-  },
-];
+const Home = ({ globalDiscount }) => {
+  const [events, setEvents] = useState([]);
+  const [offerings, setOfferings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [selectedOffering, setSelectedOffering] = useState(null);
+  const navigate = useNavigate();
 
-const Home = () => {
-  const bestEvents = events.filter((event) => event.best);
+  const featuredEvents = useMemo(() => events.filter((ev) => ev.featured), [events]);
+  const popularOfferings = useMemo(() => offerings.slice(0, 6), [offerings]);
+
+  const processSteps = [
+    {
+      icon: HiOutlineCalendar,
+      title: "Explore & Inspire",
+      description: "Browse our stunning portfolio and find your perfect style",
+      color: "from-purple-500 to-pink-500",
+      bgColor: "bg-purple-500/10"
+    },
+    {
+      icon: HiOutlineSparkles,
+      title: "Plan & Personalize",
+      description: "Work with our team to customize every detail",
+      color: "from-pink-500 to-red-500",
+      bgColor: "bg-pink-500/10"
+    },
+    {
+      icon: HiCheckCircle,
+      title: "Celebrate & Cherish",
+      description: "Enjoy your perfectly executed dream event",
+      color: "from-red-500 to-orange-500",
+      bgColor: "bg-red-500/10"
+    }
+  ];
+
+  const testimonials = [
+    {
+      name: "Priya Sharma",
+      quote: "Eventify transformed my daughter's birthday into a magical wonderland. Every detail was perfect!",
+      event: "Enchanted Princess Party",
+      avatar: "https://randomuser.me/api/portraits/women/1.jpg",
+      rating: 5
+    },
+    {
+      name: "Rahul Malhotra",
+      quote: "Our anniversary celebration was absolutely stunning. Ananya's creativity exceeded all expectations!",
+      event: "Golden Anniversary Gala",
+      avatar: "https://randomuser.me/api/portraits/men/2.jpg",
+      rating: 5
+    },
+    {
+      name: "Anjali Kapoor",
+      quote: "From planning to execution, everything was flawless. Our guests are still talking about it!",
+      event: "Garden Wedding Reception",
+      avatar: "https://randomuser.me/api/portraits/women/3.jpg",
+      rating: 5
+    }
+  ];
+
+  const stats = [
+    { number: "500+", label: "Events Completed", icon: HiOutlineCalendar },
+    { number: "1000+", label: "Happy Clients", icon: HiUserGroup },
+    { number: "50+", label: "Unique Themes", icon: HiOutlineSparkles },
+    { number: "100%", label: "Satisfaction Rate", icon: HiHeart }
+  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const [eventsData, offeringsData] = await Promise.all([
+          apiService.get("/api/events"),
+          apiService.get("/api/offerings").catch(() => [])
+        ]);
+        
+        setEvents(eventsData);
+        setOfferings(offeringsData);
+      } catch (err) {
+        setError("Could not load events.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const LoadingSpinner = () => (
+    <div className="flex flex-col items-center justify-center py-16">
+      <div className="relative">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
+        <div className="animate-pulse absolute inset-0 rounded-full border-2 border-purple-300/30"></div>
+      </div>
+      <p className="text-purple-400 text-lg mt-4 font-medium">Creating magic...</p>
+    </div>
+  );
+
+  const ErrorDisplay = ({ message }) => (
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-gradient-to-r from-red-900/30 to-red-800/30 border border-red-700 rounded-2xl p-8 text-center backdrop-blur-sm">
+        <div className="w-16 h-16 mx-auto mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
+          <HiArrowPath className="w-8 h-8 text-red-400" />
+        </div>
+        <p className="text-red-300 text-xl font-semibold mb-6">{message}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-medium transition-all duration-300 inline-flex items-center gap-3 transform hover:scale-105"
+        >
+          <HiArrowPath className="w-5 h-5" />
+          Try Again
+        </button>
+      </div>
+    </div>
+  );
+
+  const NoDataDisplay = ({ title, linkTo, linkText, icon: Icon = HiOutlineCalendar }) => (
+    <div className="text-center py-16">
+      <div className="max-w-md mx-auto bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="w-20 h-20 mx-auto mb-6 bg-purple-500/20 rounded-full flex items-center justify-center">
+          <Icon className="w-10 h-10 text-purple-400" />
+        </div>
+        <p className="text-xl text-gray-300 mb-6">{title}</p>
+        <Link
+          to={linkTo}
+          className="px-8 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold rounded-xl shadow-lg transition-all duration-300 inline-block transform hover:scale-105"
+        >
+          {linkText}
+        </Link>
+      </div>
+    </div>
+  );
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-100 to-yellow-50 p-8">
-      <section className="mb-16 flex flex-col md:flex-row items-center justify-between gap-10 bg-gradient-to-r from-pink-200 via-fuchsia-100 to-yellow-100 rounded-3xl p-10 shadow-2xl border-4 border-pink-100 relative overflow-hidden">
-        <div className="flex-1 z-10">
-          <h1 className="text-5xl md:text-6xl font-extrabold text-pink-700 mb-6 drop-shadow-lg font-cursive">Make Every Moment Magical</h1>
-          <p className="text-xl md:text-2xl text-pink-500 mb-8 font-medium">Birthday parties, anniversaries, and cozy celebrations—crafted with love, color, and creativity by Ananya.</p>
-          <a href="/events" className="inline-block px-8 py-4 bg-gradient-to-r from-pink-400 to-yellow-300 text-white font-bold rounded-full shadow-lg hover:scale-105 hover:from-pink-500 hover:to-yellow-400 transition-transform duration-200">Browse All Events</a>
+    <div className="space-y-20 md:space-y-32 pb-20">
+      <section className="relative pt-20 pb-20 md:pt-32 md:pb-24 text-center overflow-hidden bg-gray-900">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/30 via-pink-600/30 to-red-600/30 opacity-50 animate-gradient-xy"></div>
+        <div className="absolute inset-0 opacity-10 pattern-dots pattern-gray-700 pattern-bg-gray-900 pattern-size-8 pattern-opacity-30"></div>
+
+        <div className="relative container mx-auto px-4 z-10">
+          <h1 className="text-5xl md:text-7xl font-extrabold mb-6">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
+              Crafting Unforgettable
+            </span>
+            <br />
+            <span className="text-gray-100">Moments & Memories</span>
+          </h1>
+          <p className="text-xl md:text-2xl text-gray-300 mb-10 max-w-3xl mx-auto">
+            From intimate gatherings to grand celebrations, Eventify brings your
+            vision to life with creativity, passion, and meticulous planning.
+            Let's make your next event extraordinary.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+            <Link
+              to="/events"
+              className="px-8 py-4 bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 text-lg"
+            >
+              Explore Events
+            </Link>
+            <Link
+              to="/offerings"
+              className="px-8 py-4 border-2 border-purple-400 text-purple-300 font-semibold rounded-lg shadow-md hover:bg-purple-400 hover:text-gray-900 hover:shadow-lg transform hover:scale-105 transition-all duration-300 text-lg"
+            >
+              View Decor Packages
+            </Link>
+          </div>
         </div>
-        <div className="flex-1 flex justify-center z-10">
-          <img src="https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80" alt="Party" className="w-80 h-80 object-cover rounded-full border-8 border-pink-200 shadow-xl bg-white" />
-        </div>
-        <div className="absolute -top-10 -left-10 w-40 h-40 bg-pink-200 rounded-full opacity-30 blur-2xl animate-pulse"></div>
-        <div className="absolute -bottom-10 -right-10 w-60 h-60 bg-yellow-200 rounded-full opacity-20 blur-2xl animate-pulse"></div>
       </section>
-      <section>
-        <h2 className="text-4xl font-extrabold mb-8 text-pink-700 font-cursive flex items-center gap-2"><span role='img' aria-label='star'>🌟</span> Featured Events</h2>
-        {bestEvents.length === 0 ? (
-          <div className="text-pink-400">No featured events at the moment.</div>
+
+      <section className="container mx-auto px-4">
+        <div className="text-center mb-12 md:mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-100 mb-3">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
+              Featured
+            </span>{" "}
+            Events
+          </h2>
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+            Get inspired by some of our most loved and memorable event creations.
+          </p>
+        </div>
+
+        {loading ? (
+          <LoadingSpinner />
+        ) : error ? (
+          <ErrorDisplay message={error} />
+        ) : featuredEvents.length === 0 ? (
+          <NoDataDisplay 
+            title="No featured events at the moment."
+            linkTo="/events"
+            linkText="View All Events"
+          />
         ) : (
-          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
-            {bestEvents.map((event) => (
-              <div className="hover:scale-105 transition-transform duration-200">
-                <EventCard key={event.id} event={event} />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
+            {featuredEvents.slice(0, 3).map((event) => (
+              <EventCard key={event.id} event={event} modern={true} />
             ))}
           </div>
         )}
-      </section>
-      <section className="mt-20 bg-gradient-to-r from-pink-100 via-yellow-50 to-pink-50 rounded-2xl shadow-lg p-10 border-2 border-pink-100">
-        <h3 className="text-3xl font-bold mb-8 text-pink-700 font-cursive flex items-center gap-2"><span role='img' aria-label='sparkles'>✨</span> How It Works</h3>
-        <div className="grid md:grid-cols-3 gap-10">
-          <div className="flex flex-col items-center text-center">
-            <div className="bg-pink-200 text-pink-700 rounded-full w-20 h-20 flex items-center justify-center mb-4 text-3xl font-bold shadow-lg">1</div>
-            <h4 className="font-semibold mb-2 text-lg text-pink-700">Browse Events</h4>
-            <p className="text-pink-500">Explore a curated list of magical celebrations and ideas.</p>
-          </div>
-          <div className="flex flex-col items-center text-center">
-            <div className="bg-yellow-200 text-yellow-700 rounded-full w-20 h-20 flex items-center justify-center mb-4 text-3xl font-bold shadow-lg">2</div>
-            <h4 className="font-semibold mb-2 text-lg text-yellow-700">Select & Request</h4>
-            <p className="text-yellow-600">Pick your favorite and send your details—Ananya will handle the magic!</p>
-          </div>
-          <div className="flex flex-col items-center text-center">
-            <div className="bg-fuchsia-200 text-fuchsia-700 rounded-full w-20 h-20 flex items-center justify-center mb-4 text-3xl font-bold shadow-lg">3</div>
-            <h4 className="font-semibold mb-2 text-lg text-fuchsia-700">Celebrate!</h4>
-            <p className="text-fuchsia-600">Get ready for a beautiful, personalized event you’ll never forget.</p>
-          </div>
+      </section>           
+      <section className="container mx-auto px-4 py-16 bg-gray-800/30 rounded-xl shadow-xl backdrop-blur-md">
+        <div className="text-center mb-12 md:mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-100 mb-3">
+            Your Dream Event in{" "}
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-teal-400 via-cyan-500 to-sky-500">
+              3 Simple Steps
+            </span>
+          </h2>
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+            Bringing your perfect celebration to life is easier than you think.
+          </p>
         </div>
-      </section>
-      <section className="mt-20">
-        <h3 className="text-3xl font-bold mb-8 text-pink-700 font-cursive flex items-center gap-2"><span role='img' aria-label='heart'>💖</span> What People Say</h3>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
-          <div className="bg-white rounded-2xl shadow-xl p-8 border-l-8 border-pink-200 relative">
-            <span className="absolute -top-6 left-6 text-4xl">🎂</span>
-            <p className="text-pink-700 italic mb-4 text-lg">“Amazing experience! The birthday party was magical and so well organized.”</p>
-            <div className="text-sm text-pink-500 font-bold">- Priya S.</div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-xl p-8 border-l-8 border-yellow-200 relative">
-            <span className="absolute -top-6 left-6 text-4xl">🎈</span>
-            <p className="text-yellow-700 italic mb-4 text-lg">“Loved the creative decor and the personal touches. The request process was super easy.”</p>
-            <div className="text-sm text-yellow-600 font-bold">- Rahul M.</div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-xl p-8 border-l-8 border-fuchsia-200 relative">
-            <span className="absolute -top-6 left-6 text-4xl">💐</span>
-            <p className="text-fuchsia-700 italic mb-4 text-lg">“Highly recommend! Our anniversary was unforgettable thanks to Ananya.”</p>
-            <div className="text-sm text-fuchsia-600 font-bold">- Anjali K.</div>
-          </div>
+        <div className="grid md:grid-cols-3 gap-8 md:gap-12 text-center">
+          {[
+            {
+              icon: HiOutlineCalendar,
+              title: "1. Explore & Inspire",
+              description: "Browse our portfolio of stunning events and decor packages. Find what sparks your joy or share your unique vision with us.",
+              color: "purple"
+            },
+            {
+              icon: HiOutlineSparkles,
+              title: "2. Plan & Personalize",
+              description: "Connect with Ananya to discuss your ideas, preferences, and budget. We'll tailor every detail to match your dream.",
+              color: "pink"
+            },
+            {
+              icon: HiCheckCircle,
+              title: "3. Celebrate & Cherish",
+              description: "Relax and enjoy your perfectly executed event, creating memories that will last a lifetime. We handle everything!",
+              color: "teal"
+            }
+          ].map((step, index) => (
+            <div key={index} className={`p-6 bg-gray-700/50 rounded-lg shadow-lg hover:shadow-${step.color}-500/30 transition-shadow duration-300 transform hover:-translate-y-1`}>
+              <step.icon className={`w-12 h-12 mx-auto mb-4 text-${step.color}-400`} />
+              <h3 className="text-2xl font-semibold text-gray-100 mb-2">
+                {step.title}
+              </h3>
+              <p className="text-gray-400">
+                {step.description}
+              </p>
+            </div>
+          ))}
         </div>
-      </section>
-      <section className="mt-20 bg-pink-100 rounded-3xl shadow-2xl p-10 border-4 border-pink-200">
-        <h3 className="text-3xl font-bold mb-6 text-pink-700 font-cursive flex items-center gap-2">
-          <span role="img" aria-label="party">🎉</span> About Eventify
-        </h3>
-        <p className="text-pink-800 mb-4 text-xl font-medium">
-          Eventify is a passion project by Ananya, who loves creating magical moments for birthdays, anniversaries, and intimate celebrations. Every event is crafted with heart, creativity, and a touch of sparkle to make your special day unforgettable.
-        </p>
-        <p className="text-pink-700 text-lg">
-          From dreamy decor to personalized touches, Eventify brings your vision to life—whether it's a surprise birthday, a romantic anniversary, or a cozy get-together. Let Ananya help you celebrate life's beautiful moments in style!
-        </p>
+      </section>      <section className="container mx-auto px-4">
+        <div className="text-center mb-12 md:mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-100 mb-3">
+            Event{" "}
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500">
+              Decor Packages
+            </span>
+          </h2>
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+            Choose from our curated decor packages or let us design something
+            uniquely yours.
+          </p>
+        </div>
+        {loading ? (
+          <div className="text-center text-xl text-gray-400">
+            Loading decor packages...
+          </div>
+        ) : offerings.length === 0 ? (
+          <div className="text-center text-xl text-gray-400">
+            No decor packages available right now. Please check back soon!
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
+            {offerings.slice(0, 3).map((offering) => (
+              <PublicOfferingCard
+                key={offering.id}
+                offering={offering}
+                modern={true}
+                globalDiscount={globalDiscount}
+              />
+            ))}
+          </div>
+        )}
+        {showRequestModal && selectedOffering && (
+          <RequestOfferingModal
+            offering={selectedOffering}
+            onClose={() => setShowRequestModal(false)}
+            modern={true}
+          />
+        )}
+      </section>      <section className="container mx-auto px-4 py-16 bg-gray-800/30 rounded-xl shadow-xl backdrop-blur-md">
+        <div className="text-center mb-12 md:mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-100 mb-3">
+            Words From Our{" "}
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500">
+              Happy Clients
+            </span>
+          </h2>
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+            We love making dreams come true. Here's what some of our clients have
+            to say.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {testimonials.map((testimonial, index) => (
+            <div
+              key={index}
+              className="bg-gray-700/50 p-6 rounded-lg shadow-lg flex flex-col items-center text-center transform transition-all duration-300 hover:scale-105 hover:shadow-green-500/30"
+            >
+              <img
+                src={testimonial.avatar}
+                alt={testimonial.name}
+                className="w-20 h-20 rounded-full mb-4 border-2 border-green-400"
+              />
+              <div className="flex mb-2">
+                {[...Array(5)].map((_, i) => (
+                  <HiStar key={i} className="w-6 h-6 text-yellow-400" />
+                ))}
+              </div>
+              <p className="text-gray-300 italic mb-4">
+                "{testimonial.quote}"
+              </p>
+              <h4 className="text-lg font-semibold text-gray-100">
+                - {testimonial.name}
+              </h4>
+              <p className="text-sm text-green-400">{testimonial.event}</p>
+            </div>
+          ))}
+        </div>
+      </section>      <section className="container mx-auto px-4 text-center">
+        <div className="max-w-3xl mx-auto bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-600/20 p-8 md:p-12 rounded-xl shadow-2xl backdrop-blur-lg">
+          <div className="flex justify-center items-center mb-6">
+            <HiHeart className="w-8 h-8 mr-2 text-pink-500" />
+            <HiGift className="w-8 h-8 mr-2 text-purple-400" />
+          </div>
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-100 mb-4">
+            About{" "}
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
+              Eventify
+            </span>
+          </h2>
+          <p className="text-lg text-gray-300 mb-6">
+            Eventify is born from a passion for creating beautiful, memorable
+            experiences. Ananya, our lead creative, pours her heart into every
+            event, ensuring it's not just a party, but a cherished memory in the
+            making. We specialize in personalized celebrations that reflect your
+            unique style and story.
+          </p>
+          <Link
+            to="/contact"
+            className="px-8 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300 text-md"
+          >
+            Get In Touch
+          </Link>
+        </div>
       </section>
     </div>
   );

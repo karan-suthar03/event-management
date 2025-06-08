@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { HiPlus, HiArrowUp, HiArrowDown, HiTrash, HiPhoto, HiDocumentText } from "react-icons/hi2";
+import apiService from "../utils/apiService";
+import authService from "../utils/authService";
 
 const AddEvent = () => {
   const navigate = useNavigate();
@@ -28,21 +31,20 @@ const AddEvent = () => {
   const [categoryError, setCategoryError] = useState("");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: "", emoji: "" });
-
+  const [featured, setFeatured] = useState(false);
   useEffect(() => {
     const fetchCategories = async () => {
       setCategoryLoading(true);
       setCategoryError("");
       try {
-        const res = await fetch("http://localhost:8080/api/categories");
-        if (res.ok) {
-          const data = await res.json();
-          setCategories(data);
+        const data = await apiService.get("/api/categories");
+        setCategories(data);
+      } catch (e) {
+        if (e.message === 'Unauthorized') {
+          setCategoryError("Please log in to manage categories");
         } else {
           setCategoryError("Failed to load categories");
         }
-      } catch (e) {
-        setCategoryError("Network error loading categories");
       }
       setCategoryLoading(false);
     };
@@ -114,8 +116,7 @@ const AddEvent = () => {
   const handleNewCategoryChange = (e) => {
     const { name, value } = e.target;
     setNewCategory(c => ({ ...c, [name]: value }));
-  };
-  const handleAddCategory = async (e) => {
+  };  const handleAddCategory = async (e) => {
     e.preventDefault();
     if (!newCategory.name || !newCategory.emoji) {
       alert("Both name and emoji are required.");
@@ -124,25 +125,19 @@ const AddEvent = () => {
     setCategoryLoading(true);
     setCategoryError("");
     try {
-      const res = await fetch("http://localhost:8080/api/categories", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(newCategory)
-      });
-      if (res.ok) {
-        const created = await res.json();
-        setCategories(cats => [...cats, created]);
-        setForm(f => ({ ...f, category: created.name }));
-        setNewCategory({ name: "", emoji: "" });
-        setShowCategoryModal(false);
-      } else {
-        const err = await res.json();
-        setCategoryError(err.error || "Failed to add category");
-      }
+      const created = await apiService.post("/api/categories", newCategory, true);
+      setCategories(cats => [...cats, created]);
+      setForm(f => ({ ...f, category: created.name }));
+      setNewCategory({ name: "", emoji: "" });
+      setShowCategoryModal(false);
     } catch (e) {
-      setCategoryError("Network error adding category");
+      if (e.message === 'Unauthorized') {
+        setCategoryError("Please log in to add categories");
+        authService.logout();
+        navigate("/admin");
+      } else {
+        setCategoryError("Failed to add category");
+      }
     }
     setCategoryLoading(false);
   };
@@ -161,6 +156,7 @@ const AddEvent = () => {
         descriptions,
         highlights: form.highlights,
         organizerNotes: form.organizerNotes,
+        featured,
       };
       const fd = new FormData();
       Object.entries(eventData).forEach(([key, value]) => {
@@ -173,126 +169,202 @@ const AddEvent = () => {
       images.forEach((img, idx) => {
         fd.append("images", img);
       });
-      const res = await fetch("http://localhost:8080/api/events", {
-        method: "POST",
-        body: fd
-      });
-      if (res.ok) {
-        alert("Event added!");
-        setForm({ title: "", category: "", date: "", location: "", description: "", highlights: "", images: [], organizerNotes: "" });
-        setDescriptions([{ title: "", description: "" }]);
-        setImages([]);
-      } else {
-        let err;
-        try {
-          err = await res.json();
-        } catch {
-          err = { error: "Failed to add event" };
-        }
-        if (err && err.error && err.error.toLowerCase().includes("category")) {
-          setError("Category not found. Please select or create a valid category.");
-        } else {
-          setError(err.error || "Failed to add event");
-        }
-      }
+      
+      await apiService.uploadFile("/api/events", fd, true);
+      alert("Event added!");
+      setForm({ title: "", category: "", date: "", location: "", description: "", highlights: "", images: [], organizerNotes: "" });
+      setDescriptions([{ title: "", description: "" }]);
+      setImages([]);
+      setFeatured(false);
     } catch (e) {
-      setError("Network error");
+      if (e.message === 'Unauthorized') {
+        setError("Please log in to add events");
+        authService.logout();
+        navigate("/admin");
+      } else {
+        setError("Failed to add event");
+      }
     }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-pink-50 flex items-center justify-center py-8 px-2">
-      <div className="w-full max-w-xl bg-white rounded-xl shadow-xl border-2 border-pink-100 p-8">
-        <h1 className="text-2xl font-extrabold text-pink-700 mb-6">Add Completed Event</h1>
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          <input name="title" value={form.title} onChange={handleChange} placeholder="Event Title" className="border rounded px-3 py-2" />
+    <div className="min-h-screen bg-slate-900 p-4 md:p-8 flex items-center justify-center text-slate-300">
+      <div className="w-full max-w-2xl bg-slate-800 rounded-xl shadow-2xl border border-slate-700 p-6 md:p-10">
+        <h1 className="text-3xl md:text-4xl font-bold text-sky-400 mb-8 text-center">Add New Event</h1>
+        <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
           <div>
-            <label className="block font-semibold text-pink-700 mb-1">Category</label>
-            <div className="flex gap-2 items-center">
-              <select name="category" value={form.category} onChange={handleCategorySelect} className="border rounded px-3 py-2 flex-1" disabled={categoryLoading}>
-                <option value="">{categoryLoading ? "Loading..." : "Select Category"}</option>
-                {categories.map((cat, idx) => (
-                  <option key={cat.id || cat.name} value={cat.name}>{cat.emoji} {cat.name}</option>
-                ))}
-              </select>
-              <button type="button" className="px-3 py-1 bg-pink-200 text-pink-700 rounded" onClick={() => setShowCategoryModal(true)} disabled={categoryLoading}>+ New</button>
-            </div>
-            {categoryError && <div className="text-red-600 text-sm mt-1">{categoryError}</div>}
+            <label htmlFor="title" className="block text-sm font-medium text-sky-300 mb-1.5">Event Title</label>
+            <input id="title" name="title" value={form.title} onChange={handleChange} placeholder="Enter event title" className="w-full bg-slate-700 border border-slate-600 text-slate-200 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors" />
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-sky-300 mb-1.5">Category</label>
+              <div className="flex gap-2 items-center">
+                <select id="category" name="category" value={form.category} onChange={handleCategorySelect} className="w-full bg-slate-700 border border-slate-600 text-slate-200 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors disabled:opacity-70" disabled={categoryLoading}>
+                  <option value="">{categoryLoading ? "Loading Categories..." : "Select Category"}</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id || cat.name} value={cat.name}>{cat.emoji} {cat.name}</option>
+                  ))}
+                </select>
+                <button type="button" className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow font-medium text-sm transition-colors duration-200 flex items-center gap-1.5 whitespace-nowrap" onClick={() => setShowCategoryModal(true)} disabled={categoryLoading}>
+                  <HiPlus className="h-4 w-4" />
+                  New
+                </button>
+              </div>
+              {categoryError && <div className="text-red-400 text-xs mt-1.5">{categoryError}</div>}
+            </div>
+            <div>
+              <label htmlFor="date" className="block text-sm font-medium text-sky-300 mb-1.5">Date</label>
+              <input id="date" name="date" type="date" value={form.date} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 text-slate-200 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors [color-scheme:dark]" />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="location" className="block text-sm font-medium text-sky-300 mb-1.5">Location</label>
+            <input id="location" name="location" value={form.location} onChange={handleChange} placeholder="Enter event location" className="w-full bg-slate-700 border border-slate-600 text-slate-200 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors" />
+          </div>
+
           {showCategoryModal && (
-            <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl p-6 border-2 border-pink-100 flex flex-col gap-3 min-w-[300px]">
-                <h2 className="text-lg font-bold text-pink-700 mb-2">Add New Category</h2>
-                <input name="emoji" value={newCategory.emoji} onChange={handleNewCategoryChange} placeholder="Emoji (e.g. 🎈)" className="border rounded px-2 py-1" maxLength={2} />
-                <input name="name" value={newCategory.name} onChange={handleNewCategoryChange} placeholder="Category Name" className="border rounded px-2 py-1" />
-                {categoryError && <div className="text-red-600 text-sm">{categoryError}</div>}
-                <div className="flex gap-2 mt-2">
-                  <button className="px-3 py-1 bg-pink-500 text-white rounded" onClick={handleAddCategory} disabled={categoryLoading}>Add</button>
-                  <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => { setShowCategoryModal(false); setCategoryError(""); }}>Cancel</button>
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+              <div className="bg-slate-800 rounded-xl p-6 md:p-8 border border-slate-700 shadow-2xl flex flex-col gap-4 w-full max-w-md">
+                <h2 className="text-xl font-bold text-sky-400 mb-2">Add New Category</h2>
+                <input name="emoji" value={newCategory.emoji} onChange={handleNewCategoryChange} placeholder="Emoji (e.g. 🎈)" className="w-full bg-slate-700 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-1 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors" maxLength={2} />
+                <input name="name" value={newCategory.name} onChange={handleNewCategoryChange} placeholder="Category Name" className="w-full bg-slate-700 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 focus:ring-1 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors" />
+                {categoryError && <div className="text-red-400 text-xs">{categoryError}</div>}
+                <div className="flex gap-3 mt-3">
+                  <button className="flex-1 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow font-medium text-sm transition-colors duration-200 disabled:opacity-70" onClick={handleAddCategory} disabled={categoryLoading || !newCategory.name || !newCategory.emoji}>
+                    {categoryLoading ? 'Adding...' : 'Add Category'}
+                  </button>
+                  <button type="button" className="flex-1 px-4 py-2.5 bg-slate-600 hover:bg-slate-500 text-sky-300 rounded-lg shadow font-medium text-sm transition-colors duration-200 border border-slate-500 hover:border-sky-400" onClick={() => { setShowCategoryModal(false); setCategoryError(""); }}>Cancel</button>
                 </div>
               </div>
             </div>
           )}
-          <input name="date" type="date" value={form.date} onChange={handleChange} className="border rounded px-3 py-2" />
-          <input name="location" value={form.location} onChange={handleChange} placeholder="Location" className="border rounded px-3 py-2" />
+
           <div>
-            <label className="block font-semibold text-pink-700 mb-1">Main Description</label>
-            <textarea name="description" value={form.description} onChange={handleChange} placeholder="Event Description" className="border rounded px-3 py-2 min-h-[60px] w-full" />
+            <label htmlFor="description" className="block text-sm font-medium text-sky-300 mb-1.5">Main Description</label>
+            <textarea id="description" name="description" value={form.description} onChange={handleChange} placeholder="Provide a detailed description of the event" rows={4} className="w-full bg-slate-700 border border-slate-600 text-slate-200 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors min-h-[100px] resize-y" />
           </div>
+
           <div>
-            <label className="block font-semibold text-pink-700 mb-1">Additional Sections</label>
-            {descriptions.map((desc, idx) => (
-              <div key={idx} className="flex flex-col gap-1 mb-2 border border-pink-100 rounded p-2 bg-pink-50">
-                <div className="flex gap-2 mb-1">
-                  <input
-                    type="text"
-                    value={desc.title}
-                    onChange={e => handleDescChange(idx, "title", e.target.value)}
-                    placeholder="Section Title (optional)"
-                    className="border rounded px-2 py-1 flex-1"
+            <label className="block text-sm font-medium text-sky-300 mb-2">Additional Sections</label>
+            <div className="space-y-4">
+              {descriptions.map((desc, idx) => (
+                <div key={idx} className="flex flex-col gap-2 p-4 bg-slate-700/50 border border-slate-600 rounded-lg">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <input
+                      type="text"
+                      value={desc.title}
+                      onChange={e => handleDescChange(idx, "title", e.target.value)}
+                      placeholder={`Section ${idx + 1} Title (optional)`}
+                      className="flex-grow bg-slate-600 border border-slate-500 text-slate-200 rounded-md px-3 py-2 focus:ring-1 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors min-w-[200px]"
+                    />
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button type="button" className="p-2 bg-slate-600 hover:bg-slate-500 text-sky-300 rounded-md text-xs transition-colors disabled:opacity-50" onClick={() => moveDescription(idx, -1)} disabled={idx === 0} title="Move Up">
+                        <HiArrowUp className="h-4 w-4" />
+                      </button>
+                      <button type="button" className="p-2 bg-slate-600 hover:bg-slate-500 text-sky-300 rounded-md text-xs transition-colors disabled:opacity-50" onClick={() => moveDescription(idx, 1)} disabled={idx === descriptions.length - 1} title="Move Down">
+                        <HiArrowDown className="h-4 w-4" />
+                      </button>
+                      <button type="button" className="p-2 bg-red-700 hover:bg-red-600 text-white rounded-md text-xs transition-colors disabled:opacity-50" onClick={() => removeDescription(idx)} disabled={descriptions.length === 1} title="Remove Section">
+                        <HiTrash className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    value={desc.description}
+                    onChange={e => handleDescChange(idx, "description", e.target.value)}
+                    placeholder={`Section ${idx + 1} Description`}
+                    rows={3}
+                    className="w-full bg-slate-600 border border-slate-500 text-slate-200 rounded-md px-3 py-2 focus:ring-1 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors min-h-[80px] resize-y"
                   />
-                  <button type="button" className="px-2 py-1 bg-gray-200 rounded" onClick={() => moveDescription(idx, -1)} disabled={idx === 0}>↑</button>
-                  <button type="button" className="px-2 py-1 bg-gray-200 rounded" onClick={() => moveDescription(idx, 1)} disabled={idx === descriptions.length - 1}>↓</button>
-                  <button type="button" className="px-2 py-1 bg-red-200 text-red-700 rounded" onClick={() => removeDescription(idx)} disabled={descriptions.length === 1}>Remove</button>
-                </div>
-                <textarea
-                  value={desc.description}
-                  onChange={e => handleDescChange(idx, "description", e.target.value)}
-                  placeholder="Section Description"
-                  className="border rounded px-2 py-1 min-h-[40px]"
-                />
-              </div>
-            ))}
-            <button type="button" className="px-3 py-1 bg-pink-200 text-pink-700 rounded" onClick={addDescription}>+ Add Section</button>
-          </div>
-          <textarea name="highlights" value={form.highlights} onChange={handleChange} placeholder="Highlights (comma separated)" className="border rounded px-3 py-2 min-h-[40px]" />
-          <div>
-            <label className="block font-semibold text-pink-700 mb-1">Event Images</label>
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              ref={fileInputRef}
-              onChange={handleImageFile}
-              className="mb-2"
-            />
-            <div className="flex flex-col gap-2">
-              {images.map((img, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <span className="text-xs text-pink-700">{img.name}</span>
-                  <button type="button" className="px-2 py-1 bg-gray-200 rounded" onClick={() => moveImage(idx, -1)} disabled={idx === 0}>↑</button>
-                  <button type="button" className="px-2 py-1 bg-gray-200 rounded" onClick={() => moveImage(idx, 1)} disabled={idx === images.length - 1}>↓</button>
-                  <button type="button" className="px-2 py-1 bg-red-200 text-red-700 rounded" onClick={() => removeImage(idx)}>Remove</button>
                 </div>
               ))}
             </div>
+            <button type="button" className="mt-3 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow font-medium text-sm transition-colors duration-200 flex items-center gap-1.5" onClick={addDescription}>
+              <HiPlus className="h-4 w-4" />
+              Add Section
+            </button>
           </div>
-          <textarea name="organizerNotes" value={form.organizerNotes} onChange={handleChange} placeholder="Organizer Notes (optional)" className="border rounded px-3 py-2 min-h-[40px]" />
-          <button type="submit" className="px-4 py-2 bg-pink-500 text-white rounded font-bold mt-2">Add Event</button>
+
+          <div>
+            <label htmlFor="highlights" className="block text-sm font-medium text-sky-300 mb-1.5">Highlights</label>
+            <textarea id="highlights" name="highlights" value={form.highlights} onChange={handleChange} placeholder="Enter comma-separated highlights (e.g., Live Music, Free Food, Networking)" rows={2} className="w-full bg-slate-700 border border-slate-600 text-slate-200 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors min-h-[60px] resize-y" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-sky-300 mb-1.5">Event Images</label>
+            <div className="p-4 bg-slate-700/50 border-2 border-dashed border-slate-600 rounded-lg hover:border-sky-500 transition-colors">
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleImageFile}
+                className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-sky-600 file:text-white hover:file:bg-sky-700 cursor-pointer"
+              />
+            </div>
+            {images.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <h3 className="text-sm font-medium text-sky-300">Uploaded Images (Drag to reorder):</h3>
+                {images.map((img, idx) => (
+                  <div key={idx} className="flex items-center gap-3 p-2.5 bg-slate-700 border border-slate-600 rounded-lg shadow-sm">
+                    <span className="text-sm text-slate-300 truncate flex-grow" title={img.name}>{img.name} ({ (img.size / 1024).toFixed(1) } KB)</span>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button type="button" className="p-1.5 bg-slate-600 hover:bg-slate-500 text-sky-300 rounded-md text-xs transition-colors disabled:opacity-50" onClick={() => moveImage(idx, -1)} disabled={idx === 0} title="Move Up">
+                        <HiArrowUp className="h-4 w-4" />
+                      </button>
+                      <button type="button" className="p-1.5 bg-slate-600 hover:bg-slate-500 text-sky-300 rounded-md text-xs transition-colors disabled:opacity-50" onClick={() => moveImage(idx, 1)} disabled={idx === images.length - 1} title="Move Down">
+                        <HiArrowDown className="h-4 w-4" />
+                      </button>
+                      <button type="button" className="p-1.5 bg-red-700 hover:bg-red-600 text-white rounded-md text-xs transition-colors" onClick={() => removeImage(idx)} title="Remove Image">
+                        <HiTrash className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 p-4 bg-slate-700/50 border border-slate-600 rounded-lg">
+            <input
+              type="checkbox"
+              id="featured"
+              checked={featured}
+              onChange={e => setFeatured(e.target.checked)}
+              className="w-5 h-5 accent-sky-500 bg-slate-600 border-slate-500 rounded focus:ring-2 focus:ring-offset-0 focus:ring-offset-slate-800 focus:ring-sky-500 cursor-pointer"
+            />
+            <label htmlFor="featured" className="text-sm font-medium text-sky-300 cursor-pointer select-none">
+              Mark as Featured
+              <span className="block text-xs text-slate-400 font-normal">Show this event prominently on the home page and event listings.</span>
+            </label>
+          </div>
+
+          <div>
+            <label htmlFor="organizerNotes" className="block text-sm font-medium text-sky-300 mb-1.5">Organizer Notes (Optional)</label>
+            <textarea id="organizerNotes" name="organizerNotes" value={form.organizerNotes} onChange={handleChange} placeholder="Internal notes for event organizers (not public)" rows={3} className="w-full bg-slate-700 border border-slate-600 text-slate-200 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors min-h-[80px] resize-y" />
+          </div>
+
+          <button type="submit" className="w-full px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold text-base shadow-md transition-colors duration-200 disabled:opacity-70 flex items-center justify-center gap-2" disabled={loading}>
+            {loading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Submitting...
+              </>
+            ) : "Add Event"}
+          </button>
         </form>
-        {loading && <p className="text-pink-700">Submitting...</p>}
-        {error && <p className="text-red-700">{error}</p>}
+        {error && 
+          <div className="mt-6 p-3 bg-red-900/30 border border-red-700 rounded-lg">
+            <p className="text-red-400 text-sm text-center font-medium">{error}</p>
+          </div>
+        }
       </div>
     </div>
   );

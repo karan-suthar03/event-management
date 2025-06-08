@@ -1,0 +1,21 @@
+# Ignore build artifacts
+target/
+!target/backend-*.jar
+
+# Ignore IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore temporary files
+*.tmp
+*.log
+
+# Ignore Maven wrapper jar (we'll copy it manually)
+!.mvn/wrapper/maven-wrapper.jar

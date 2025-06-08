@@ -1,75 +1,111 @@
-import React from "react";
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { HiStar, HiOutlineDocumentText, HiArrowLeft, HiOutlineSparkles } from "react-icons/hi2";
+import SimpleImageGallery from "./SimpleImageGallery";
+import RequestSimilarEventModal from "./RequestSimilarEventModal";
 
 const EventDetailsLayout = ({ event, onBack, onRequest, controls }) => {
+  const [showRequestModal, setShowRequestModal] = useState(false);
   if (!event) return null;
+  const handleRequestClick = () => {
+    if (typeof onRequest === 'function') {
+      onRequest();
+    } else if (onRequest) {
+      setShowRequestModal(true);
+    }
+  };
   return (
-    <div className="w-full max-w-5xl bg-white/90 rounded-3xl shadow-2xl border-4 border-pink-200 mt-8 overflow-hidden flex flex-col">
+    <div className="w-full max-w-6xl mx-auto mt-8 font-sans">
       {controls && (
-        <div className="w-full bg-gradient-to-r from-fuchsia-50 via-pink-50 to-yellow-50 border-b-2 border-pink-100 p-6 flex flex-col items-center gap-4">
+        <div className="mb-6 p-4 bg-slate-700 rounded-lg shadow-md">
           {controls}
         </div>
       )}
-      <div className="flex flex-col md:flex-row">
-        <div className="md:w-1/2 flex flex-col gap-6 p-8 bg-gradient-to-b from-pink-50 via-yellow-50 to-white border-r-2 border-pink-100">
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {event.images && event.images.map((img, idx) => (
-                <img
-                  key={idx}
-                  src={img}
-                  alt={event.title + ' photo ' + (idx + 1)}
-                  className="w-32 h-32 object-cover rounded-2xl border-2 border-pink-200 shadow bg-white flex-shrink-0 hover:scale-105 transition-transform duration-200"
-                />
-              ))}
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-1 space-y-6">
+          <div className="relative">
+            <SimpleImageGallery 
+              images={event.images || []}
+              altText={event.title}
+            />
           </div>
-          <div className="flex flex-wrap gap-2 items-center mt-2">
-            <span className="text-3xl">{event.category?.emoji || "🎉"}</span>
-            <span className="text-lg font-bold text-pink-700">{event.category?.name || "Event"}</span>
-            <span className="text-pink-400">|</span>
-            <span className="text-pink-600 font-semibold">{event.date}</span>
-            {event.location && <span className="text-pink-400">| {event.location}</span>}
-            {event.best && <span className="ml-2 px-3 py-1 bg-yellow-200 text-yellow-700 rounded-full font-bold text-xs">Featured</span>}
-          </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-pink-700 font-cursive mt-2 mb-2 leading-tight">{event.title}</h1>
-          <div className="text-pink-700 text-base md:text-lg whitespace-pre-line mb-2">{event.description}</div>
-          {event.highlights && (Array.isArray(event.highlights) ? event.highlights.length > 0 : event.highlights.trim().length > 0) && (
-            <div className="bg-yellow-50 border-l-4 border-yellow-300 rounded-xl p-4 mb-2">
-              <h3 className="text-lg font-bold text-yellow-700 mb-1 flex items-center gap-1"><span role='img' aria-label='star'>✨</span> Highlights</h3>
-              <ul className="list-disc list-inside text-yellow-700 space-y-1">
-                {(Array.isArray(event.highlights)
-                  ? event.highlights
-                  : event.highlights.split(',').map(h => h.trim()).filter(Boolean)
-                ).map((item, idx) => (
-                  <li key={idx}>{item}</li>
-                ))}
-              </ul>
+          <div className="bg-slate-800 p-6 rounded-xl shadow-lg space-y-3 border border-slate-700">
+            <div className="flex items-center space-x-3">
+              <span className="text-3xl">{event.category?.emoji || "🎉"}</span>
+              <h2 className="text-xl font-semibold text-sky-400">{event.category?.name || "Event Category"}</h2>
             </div>
-          )}
+            <p className="text-slate-400"><span className="font-semibold text-slate-300">Date:</span> {event.date}</p>
+            {event.location && <p className="text-slate-400"><span className="font-semibold text-slate-300">Location:</span> {event.location}</p>}
+            {event.best && <span className="inline-block mt-2 px-3 py-1 bg-sky-500 text-sky-100 rounded-full font-bold text-xs shadow">Featured Event</span>}
+          </div>
         </div>
-        <div className="md:w-1/2 flex flex-col gap-6 p-8 bg-gradient-to-b from-fuchsia-50 via-pink-50 to-yellow-50">
+        <div className="md:col-span-2 space-y-8">
+          <div className="bg-slate-800 p-8 rounded-xl shadow-lg border border-slate-700">
+            <h1 className="text-4xl md:text-5xl font-bold text-sky-300 mb-4 leading-tight">{event.title}</h1>
+            <p className="text-lg whitespace-pre-line mb-6 text-gray-300">{event.description}</p>
+            {event.highlights && (Array.isArray(event.highlights) ? event.highlights.length > 0 : event.highlights.trim().length > 0) && (
+              <div className="mt-6 bg-slate-700/50 p-6 rounded-lg border border-slate-600">
+                <h3 className="text-2xl font-semibold text-sky-400 mb-3 flex items-center">
+                  <HiStar className="h-6 w-6 mr-2 text-yellow-400" />
+                  Event Highlights
+                </h3>
+                <ul className="list-none space-y-2 pl-1">
+                  {(Array.isArray(event.highlights)
+                    ? event.highlights
+                    : event.highlights.split(',').map(h => h.trim()).filter(Boolean)
+                  ).map((item, idx) => (
+                    <li key={idx} className="flex items-start">
+                      <span className="text-yellow-400 mr-2 mt-1">◆</span>
+                      <span className="text-gray-300">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
           {Array.isArray(event.descriptions) && event.descriptions.length > 0 && (
-            <div className="flex flex-col gap-6">
+            <div className="space-y-6">
               {event.descriptions.map((desc, idx) => (
-                <div key={idx} className="bg-white border-l-4 border-fuchsia-300 rounded-xl p-5 shadow-sm">
-                  {desc.title && <h3 className="text-xl font-bold text-fuchsia-700 mb-2 flex items-center gap-2"><span role="img" aria-label="section">📋</span> {desc.title}</h3>}
-                  <div className="text-fuchsia-700 text-base whitespace-pre-line">{desc.description}</div>
+                <div key={idx} className="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+                  {desc.title && <h3 className="text-2xl font-semibold text-sky-400 mb-3 flex items-center"><HiOutlineDocumentText className="mr-2 text-xl" /> {desc.title}</h3>}
+                  <div className="text-gray-300 whitespace-pre-line prose prose-sm prose-invert max-w-none">{desc.description}</div>
                 </div>
               ))}
             </div>
           )}
           {event.organizerNotes && (
-            <div className="bg-pink-100 border-l-4 border-pink-300 rounded-xl p-5 shadow-sm">
-              <h3 className="text-lg font-bold text-pink-700 mb-2 flex items-center gap-1"><span role='img' aria-label='memo'>📝</span> Organizer's Notes</h3>
-              <div className="text-pink-600 italic">{event.organizerNotes}</div>
+            <div className="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+              <h3 className="text-2xl font-semibold text-sky-400 mb-3 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                Organizer's Notes
+              </h3>
+              <p className="text-gray-400 italic whitespace-pre-line">{event.organizerNotes}</p>
             </div>
           )}
-          <div className="flex flex-wrap gap-4 mt-2">
-            {onBack && <button onClick={onBack} className="px-6 py-2 bg-gradient-to-r from-pink-400 to-yellow-300 text-white font-bold rounded-full shadow hover:from-pink-500 hover:to-yellow-400 transition">Back to All Events</button>}
-            {onRequest && <button onClick={onRequest} className="px-6 py-2 bg-pink-100 text-pink-700 font-bold rounded-full shadow border-2 border-pink-200 hover:bg-pink-200 transition">Request to Organize Similar Event</button>}
+          <div className="flex flex-wrap gap-4 pt-4 items-center justify-start border-t border-slate-700 mt-8">
+            {onBack && 
+              <button 
+                onClick={onBack} 
+                className="flex items-center px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50">
+                <HiArrowLeft className="h-5 w-5 mr-2" />
+                Back to Events
+              </button>}
+            {onRequest &&
+              <button 
+                onClick={handleRequestClick} 
+                className="flex items-center px-6 py-3 bg-slate-700 hover:bg-slate-600 text-sky-300 font-semibold rounded-lg shadow-md transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 ml-3">
+                <HiOutlineSparkles className="h-5 w-5 mr-2" />
+                Request Similar Event
+              </button>}
           </div>
         </div>
       </div>
+      {showRequestModal && (
+        <RequestSimilarEventModal 
+          event={event} 
+          onClose={() => setShowRequestModal(false)} 
+        />
+      )}
     </div>
   );
 };

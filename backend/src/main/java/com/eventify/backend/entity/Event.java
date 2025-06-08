@@ -43,6 +43,9 @@ public class Event {
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EventImage> images = new ArrayList<>();
 
+    @Column(nullable = false)
+    private boolean featured = false;
+
     // Getters and setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -64,4 +67,6 @@ public class Event {
     public void setDescriptions(List<DescriptionSection> descriptions) { this.descriptions = descriptions; }
     public List<EventImage> getImages() { return images; }
     public void setImages(List<EventImage> images) { this.images = images; }
+    public boolean isFeatured() { return featured; }
+    public void setFeatured(boolean featured) { this.featured = featured; }
 }

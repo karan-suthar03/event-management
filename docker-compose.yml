@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Commented out - using host PostgreSQL)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: eventify-postgres
+  #   environment:
+  #     POSTGRES_DB: ${POSTGRES_DB:-eventDB}
+  #     POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-karan}
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./init-db:/docker-entrypoint-initdb.d
+  #   networks:
+  #     - eventify-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # Spring Boot Backend
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eventify-backend
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Ensure host.docker.internal works on all platforms
+    environment:
+      # Database configuration (using host PostgreSQL)
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://192.168.118.21:5432/eventDB}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-karan}
+      
+      # JPA settings
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}
+      SPRING_JPA_SHOW_SQL: ${SPRING_JPA_SHOW_SQL:-true}
+      
+      # File upload settings
+      SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:-10MB}
+      SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:-10MB}
+      
+      # Admin contact
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-your_email@example.com}
+      ADMIN_PHONE: ${ADMIN_PHONE:-+1234567890}
+      
+      # Email configuration
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-smtp.gmail.com}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-your_email@gmail.com}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-your_app_password_here}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:-true}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:-true}      
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - eventify-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: eventify-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - eventify-network
+
+volumes:
+  # postgres_data:  # Commented out - using host PostgreSQL
+  #   driver: local
+  uploads_data:
+    driver: local
+
+networks:
+  eventify-network:
+    driver: bridge
