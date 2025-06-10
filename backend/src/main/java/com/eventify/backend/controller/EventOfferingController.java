@@ -5,19 +5,14 @@ import com.eventify.backend.entity.Category;
 import com.eventify.backend.repository.EventOfferingRepository;
 import com.eventify.backend.repository.CategoryRepository;
 import com.eventify.backend.pojo.CategoryWithCount;
+import com.eventify.backend.service.SupabaseStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.util.StringUtils;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Controller for managing event offerings (decor packages Ananya can organize)
@@ -32,6 +27,10 @@ public class EventOfferingController {
     // Injects the repository for categories
     @Autowired
     private CategoryRepository categoryRepository;
+
+    // Injects the Supabase storage service
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
 
     /**
      * POST /api/offerings
@@ -115,7 +114,7 @@ public class EventOfferingController {
      */
     @GetMapping
     public List<EventOffering> getAllOfferings() {
-        return eventOfferingRepository.findAll();
+        return eventOfferingRepository.findAllWithCategories();
     }
 
     /**
@@ -125,7 +124,7 @@ public class EventOfferingController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<EventOffering> getOfferingById(@PathVariable Long id) {
-        return eventOfferingRepository.findById(id)
+        return eventOfferingRepository.findByIdWithCategories(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -174,11 +173,9 @@ public class EventOfferingController {
             try {
                 String extension = StringUtils.getFilenameExtension(image.getOriginalFilename());
                 String fileName = UUID.randomUUID().toString() + (extension != null ? "." + extension : "");
-                String uploadDir = "src/main/resources/static/uploads/";
-                Files.createDirectories(Paths.get(uploadDir));
-                Path filePath = Paths.get(uploadDir, fileName);
-                Files.write(filePath, image.getBytes());
-                imageUrl = "/uploads/" + fileName;
+                String bucket = "offerings";
+                String supabasePath = fileName;
+                imageUrl = supabaseStorageService.uploadCompressedImage(image, bucket, supabasePath);
             } catch (Exception e) {
                 return ResponseEntity.badRequest().build();
             }
@@ -270,11 +267,9 @@ public class EventOfferingController {
                 try {
                     String extension = StringUtils.getFilenameExtension(image.getOriginalFilename());
                     String fileName = UUID.randomUUID().toString() + (extension != null ? "." + extension : "");
-                    String uploadDir = "src/main/resources/static/uploads/";
-                    Files.createDirectories(Paths.get(uploadDir));
-                    Path filePath = Paths.get(uploadDir, fileName);
-                    Files.write(filePath, image.getBytes());
-                    imageUrl = "/uploads/" + fileName;
+                    String bucket = "offerings";
+                    String supabasePath = fileName;
+                    imageUrl = supabaseStorageService.uploadCompressedImage(image, bucket, supabasePath);
                 } catch (Exception e) {
                     return ResponseEntity.badRequest().body((EventOffering) null);
                 }
@@ -361,34 +356,15 @@ public class EventOfferingController {
      */
     @GetMapping("/categories-with-count")
     public List<CategoryWithCount> getCategoriesWithOfferingCount() {
-        List<EventOffering> offerings = eventOfferingRepository.findAll();
-        Map<Long, Long> countMap = new java.util.HashMap<>();
-        for (EventOffering offering : offerings) {
-            if (offering.getCategories() != null) {
-                for (Category cat : offering.getCategories()) {
-                    countMap.put(cat.getId(), countMap.getOrDefault(cat.getId(), 0L) + 1);
-                }
-            }
-            if (offering.getMainCategory() != null) {
-                Long mainId = offering.getMainCategory().getId();
-                countMap.put(mainId, countMap.getOrDefault(mainId, 0L) + 1);
-            }
-        }
-        List<Category> categories = categoryRepository.findAll();
+        List<Object[]> rows = categoryRepository.findCategoriesWithOfferingCount();
         List<CategoryWithCount> result = new ArrayList<>();
-        for (Category cat : categories) {
-            long count = countMap.getOrDefault(cat.getId(), 0L);
-            if (count > 0) { // Only add if count is greater than 0
-                result.add(new CategoryWithCount(cat.getId(), cat.getName(), cat.getEmoji(), count));
-            }
+        for (Object[] row : rows) {
+            Long id = ((Number) row[0]).longValue();
+            String name = (String) row[1];
+            String emoji = (String) row[2];
+            Long count = ((Number) row[3]).longValue();
+            result.add(new CategoryWithCount(id, name, emoji, count));
         }
-        result.sort((a, b) -> {
-            int countCompare = Long.compare(b.getOfferingCount(), a.getOfferingCount());
-            if (countCompare == 0) {
-                return a.getName().compareTo(b.getName()); // Sort by name ascending if counts are equal
-            }
-            return countCompare;
-        });
         return result;
     }
 
@@ -421,7 +397,8 @@ public class EventOfferingController {
             @RequestParam(defaultValue = "id") String sort,
             @RequestParam(defaultValue = "asc") String order
     ) {
-        List<EventOffering> offerings = eventOfferingRepository.findAll();
+        // Use findAllWithCategories() to fetch all offerings and their categories in a single query
+        List<EventOffering> offerings = eventOfferingRepository.findAllWithCategories();
         offerings.sort((a, b) -> {
             int cmp = 0;
             switch (sort) {
@@ -471,47 +448,31 @@ public class EventOfferingController {
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) String category
     ) {
-        List<EventOffering> all = eventOfferingRepository.findAll();
-        // Filter by search text
-        if (search != null && !search.isBlank()) {
-            String s = search.toLowerCase();
-            all = all.stream().filter(o ->
-                (o.getTitle() != null && o.getTitle().toLowerCase().contains(s)) ||
-                (o.getDescription() != null && o.getDescription().toLowerCase().contains(s))
-            ).toList();
-        }
-        // Filter by price range
+        // Parse price range if provided
+        Double minPrice = null;
+        Double maxPrice = null;
         if (priceRange != null && priceRange.matches("\\d+-\\d+")) {
             String[] parts = priceRange.split("-");
-            double min = Double.parseDouble(parts[0]);
-            double max = Double.parseDouble(parts[1]);
-            all = all.stream().filter(o -> {
-                Double p = o.getApproximatePrice();
-                return p != null && p >= min && p <= max;
-            }).toList();
+            minPrice = Double.parseDouble(parts[0]);
+            maxPrice = Double.parseDouble(parts[1]);
         }
-        // Filter by category (main or any)
-        if (category != null && !category.isBlank() && !"undefined".equalsIgnoreCase(category)) {
-            all = all.stream().filter(o ->
-                (o.getMainCategory() != null && category.equalsIgnoreCase(o.getMainCategory().getName())) ||
-                (o.getCategories() != null && o.getCategories().stream().anyMatch(c -> category.equalsIgnoreCase(c.getName())))
-            ).toList();
-        }
-        // Sort
+
+        // Make a single database request with filters applied
+        List<EventOffering> results = eventOfferingRepository.searchOfferings(search, category, minPrice, maxPrice, sort);
+
+        // Apply sorting in memory since we can't use ORDER BY with DISTINCT in PostgreSQL for non-selected fields
         if (sort != null) {
             if (sort.equals("low")) {
-                all = all.stream().sorted((a, b) -> Double.compare(
-                    a.getApproximatePrice() != null ? a.getApproximatePrice() : 0.0,
-                    b.getApproximatePrice() != null ? b.getApproximatePrice() : 0.0
-                )).toList();
+                results.sort(Comparator.comparingDouble(a -> a.getApproximatePrice() != null ? a.getApproximatePrice() : 0.0));
             } else if (sort.equals("high")) {
-                all = all.stream().sorted((a, b) -> Double.compare(
+                results.sort((a, b) -> Double.compare(
                     b.getApproximatePrice() != null ? b.getApproximatePrice() : 0.0,
                     a.getApproximatePrice() != null ? a.getApproximatePrice() : 0.0
-                )).toList();
+                ));
             }
         }
-        return all;
+
+        return results;
     }
 
     /**
@@ -535,7 +496,8 @@ public class EventOfferingController {
      */
     @GetMapping("/grouped-by-main-category")
     public List<Map<String, Object>> getOfferingsGroupedByMainCategory() {
-        List<EventOffering> offerings = eventOfferingRepository.findAll();
+        // Use findAllWithCategories to fetch all offerings and their related data in a single query
+        List<EventOffering> offerings = eventOfferingRepository.findAllWithCategories();
         Map<Long, Map<String, Object>> grouped = new java.util.HashMap<>();
         for (EventOffering offering : offerings) {
             Category mainCat = offering.getMainCategory();
@@ -557,3 +519,4 @@ public class EventOfferingController {
         return result;
     }
 }
+

@@ -22,6 +22,9 @@ public class OfferingRequestController {
     @Autowired
     private OfferingRequestService offeringRequestService;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     /**
      * Create a new offering request
      * POST /api/requests
@@ -55,7 +58,7 @@ public class OfferingRequestController {
         }
         
         try {
-            JwtUtil.validateToken(authHeader.substring(7));
+            jwtUtil.validateToken(authHeader.substring(7));
             List<OfferingRequest> requests = offeringRequestRepository.findAllByOrderByRequestDateDesc();
             return ResponseEntity.ok(requests);
         } catch (Exception e) {
@@ -76,8 +79,8 @@ public class OfferingRequestController {
         }
         
         try {
-            JwtUtil.validateToken(authHeader.substring(7));
-            
+            jwtUtil.validateToken(authHeader.substring(7));
+
             return offeringRequestRepository.findById(id)
                 .map(request -> {
                     request.setViewed(true);
@@ -103,7 +106,7 @@ public class OfferingRequestController {
         }
         
         try {
-            JwtUtil.validateToken(authHeader.substring(7));
+            jwtUtil.validateToken(authHeader.substring(7));
             long count = offeringRequestRepository.countByViewedFalse();
             return ResponseEntity.ok(Map.of("count", count));
         } catch (Exception e) {
@@ -124,8 +127,8 @@ public class OfferingRequestController {
         }
         
         try {
-            JwtUtil.validateToken(authHeader.substring(7));
-            
+            jwtUtil.validateToken(authHeader.substring(7));
+
             if (offeringRequestRepository.existsById(id)) {
                 offeringRequestRepository.deleteById(id);
                 return ResponseEntity.noContent().build();

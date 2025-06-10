@@ -18,8 +18,12 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/event-requests")
 @CrossOrigin(origins = "http://localhost:3000")
-public class EventRequestController {    @Autowired
+public class EventRequestController {
+    @Autowired
     private EventRequestService eventRequestService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Autowired
     private EventRequestRepository eventRequestRepository;
@@ -49,7 +53,9 @@ public class EventRequestController {    @Autowired
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Failed to submit request. Please try again."));
         }
-    }    /**
+    }
+
+    /**
      * Get all event requests (Admin only)
      * GET /api/event-requests
      */
@@ -69,7 +75,9 @@ public class EventRequestController {    @Autowired
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Failed to fetch requests"));
         }
-    }    /**
+    }
+
+    /**
      * Mark request as viewed
      * PUT /api/event-requests/{id}/viewed
      */
@@ -97,7 +105,9 @@ public class EventRequestController {    @Autowired
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Failed to update request"));
         }
-    }    /**
+    }
+
+    /**
      * Get count of unviewed requests
      * GET /api/event-requests/unviewed-count
      */
@@ -117,7 +127,9 @@ public class EventRequestController {    @Autowired
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Failed to get unviewed count"));
         }
-    }    /**
+    }
+
+    /**
      * Delete a request
      * DELETE /api/event-requests/{id}
      */
@@ -141,7 +153,9 @@ public class EventRequestController {    @Autowired
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Failed to delete request"));
         }
-    }    private String getTokenFromRequest(HttpServletRequest request) {
+    }
+
+    private String getTokenFromRequest(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);
@@ -151,7 +165,7 @@ public class EventRequestController {    @Autowired
 
     private boolean isValidToken(String token) {
         try {
-            JwtUtil.validateToken(token);
+            jwtUtil.validateToken(token);
             return true;
         } catch (Exception e) {
             return false;

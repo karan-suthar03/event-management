@@ -22,12 +22,9 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> {})
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))            .authorizeHttpRequests(auth -> auth
-                // Static resources (frontend files) - must come first
-                .requestMatchers("/", "/index.html", "/static/**", "/assets/**", "/vite.svg").permitAll()
-                
-                // Frontend routes (for React SPA routing)
-                .requestMatchers("/login", "/admin/**", "/events/**", "/offerings/**", "/contact").permitAll()
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))              .authorizeHttpRequests(auth -> auth
+                // Health check endpoint for Render
+                .requestMatchers("/actuator/health").permitAll()
                 
                 // Public API endpoints
                 .requestMatchers(HttpMethod.POST, "/api/events/*/feedback").permitAll() // Allow users to submit feedback
@@ -39,20 +36,21 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/global-discount").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
                 .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/uploads/**").permitAll()
+                .requestMatchers("/api/auth/validate").permitAll()
                 
                 // Protected endpoints requiring authentication
                 .requestMatchers("/api/feedbacks/**").authenticated() // Admin-only feedback management
                 .requestMatchers("/api/requests/**").authenticated()
                 .requestMatchers("/api/event-requests/**").authenticated() // Admin-only event request management (except POST)
                 .requestMatchers(HttpMethod.POST, "/api/global-discount").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/categories").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/events/**").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/api/events/**").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/api/events/**").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/offerings/**").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/api/offerings/**").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/api/offerings/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/auth/me").authenticated()
+                .requestMatchers("/api/auth/me").authenticated()
                 .anyRequest().denyAll() // Deny any other requests for security
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -11,9 +11,12 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Filter for JWT authentication
@@ -23,7 +26,15 @@ import java.io.IOException;
 public class JwtAuthFilter extends OncePerRequestFilter {
     
     @Autowired
-    private JwtAuthenticationProvider authProvider;
+    private JwtAuthenticationProvider authProvider;    // Define public paths that don't require authentication
+    private static final List<String> PUBLIC_PATHS = Arrays.asList(
+            "/api/auth/login",
+            "/api/auth/validate",
+            "/api/requests",
+            "/api/event-requests"
+    );
+
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     @Override
     protected void doFilterInternal(
@@ -31,7 +42,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        
+          String path = request.getServletPath();
+
+        // Skip token validation for public paths
+        boolean isPublicPath = PUBLIC_PATHS.stream()
+                .anyMatch(p -> pathMatcher.match(p, path));
+
+        // Special handling for auth endpoints - they should always be accessible
+        if (path.startsWith("/api/auth/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // For other public paths, only POST requests to certain endpoints are allowed
+        if (isPublicPath && request.getMethod().equals("POST")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // Get authorization header
         final String authHeader = request.getHeader("Authorization");
         
@@ -57,7 +85,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         } catch (Exception e) {
             // Token validation failed, do not set authentication
-            logger.error("JWT validation failed", e);
+            logger.debug("JWT validation failed", e); // Change to debug to avoid filling logs
         }
         
         // Continue filter chain

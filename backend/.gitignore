@@ -31,3 +31,47 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment Variables ###
+.env
+.env.local
+.env.production
+.env.staging
+
+### Application Properties with Secrets ###
+# Keep the template files, but exclude any with actual secrets
+**/application-secrets.properties
+**/application-local.properties
+
+### Logs ###
+*.log
+logs/
+spring.log
+
+### File Uploads (for local development) ###
+uploads/
+temp-uploads/
+
+### Database ###
+*.db
+*.sqlite
+*.sqlite3
+
+### OS ###
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+### Backup files ###
+*.bak
+*.tmp
+*.temp
+
+### IDE ###
+*.swp
+*.swo
+*~

@@ -1,21 +1,32 @@
-# Ignore build artifacts
+# Maven
 target/
 !target/backend-*.jar
+.mvn/
+mvnw
+mvnw.cmd
 
-# Ignore IDE files
+# IDE files
 .idea/
 .vscode/
 *.iml
 *.ipr
 *.iws
 
-# Ignore OS files
+# OS files
 .DS_Store
 Thumbs.db
 
-# Ignore temporary files
-*.tmp
+# Logs
 *.log
 
-# Ignore Maven wrapper jar (we'll copy it manually)
-!.mvn/wrapper/maven-wrapper.jar
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Documentation
+README.md
+docs/

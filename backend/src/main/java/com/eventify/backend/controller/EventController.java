@@ -3,30 +3,25 @@ package com.eventify.backend.controller;
 import com.eventify.backend.entity.*;
 import com.eventify.backend.repository.*;
 import com.eventify.backend.service.EventNotificationService;
+import com.eventify.backend.service.SupabaseStorageService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.servlet.http.HttpServletRequest;
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.*;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-
 
 @RestController
 @RequestMapping("/api")
 public class EventController {
+    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     @Autowired
     private EventRepository eventRepository;
     @Autowired
@@ -39,13 +34,14 @@ public class EventController {
     private GlobalSettingRepository globalSettingRepository;
     @Autowired
     private EventNotificationService eventNotificationService;
-    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
 
     /**
      * Example GET /api/categories response:
      * [
-     *   { "id": 1, "name": "Tech", "emoji": "💻" },
-     *   { "id": 2, "name": "Music", "emoji": "🎵" }
+     * { "id": 1, "name": "Tech", "emoji": "💻" },
+     * { "id": 2, "name": "Music", "emoji": "🎵" }
      * ]
      */
     @GetMapping("/categories")
@@ -56,17 +52,17 @@ public class EventController {
     /**
      * Example POST /api/categories request body:
      * {
-     *   "name": "Art",
-     *   "emoji": "🎨"
+     * "name": "Art",
+     * "emoji": "🎨"
      * }
-     *
+     * <p>
      * Example response:
      * {
-     *   "id": 3,
-     *   "name": "Art",
-     *   "emoji": "🎨"
+     * "id": 3,
+     * "name": "Art",
+     * "emoji": "🎨"
      * }
-     *
+     * <p>
      * Example error response:
      * { "error": "Category already exists" }
      */
@@ -85,31 +81,33 @@ public class EventController {
     /**
      * Example GET /api/events response:
      * [
-     *   {
-     *     "id": 1,
-     *     "title": "Tech Conference",
-     *     "category": { "id": 1, "name": "Tech", "emoji": "💻" },
-     *     "date": "2025-06-01",
-     *     "description": "A conference about technology.",
-     *     "highlights": "Keynote, Workshops",
-     *     "organizerNotes": "Bring your laptop.",
-     *     "descriptions": [
-     *       { "title": "Keynote", "description": "Opening speech by CEO" },
-     *       { "title": "Workshop", "description": "Hands-on coding session" }
-     *     ],
-     *     "location": "Conference Center, City",
-     *     "featured": false,
-     *     "images": [
-     *       { "id": 10, "url": "/uploads/abc123_image.png" }
-     *     ]
-     *   }
+     * {
+     * "id": 1,
+     * "title": "Tech Conference",
+     * "category": { "id": 1, "name": "Tech", "emoji": "💻" },
+     * "date": "2025-06-01",
+     * "description": "A conference about technology.",
+     * "highlights": "Keynote, Workshops",
+     * "organizerNotes": "Bring your laptop.",
+     * "descriptions": [
+     * { "title": "Keynote", "description": "Opening speech by CEO" },
+     * { "title": "Workshop", "description": "Hands-on coding session" }
+     * ],
+     * "location": "Conference Center, City",
+     * "featured": false,
+     * "images": [
+     * { "id": 10, "url": "/uploads/abc123_image.png" }
      * ]
-     *
+     * }
+     * ]
+     * <p>
      * Each event object now includes a boolean "featured" property indicating if the event is featured.
      */
     @GetMapping("/events")
     public List<Event> getAllEvents() {
-        List<Event> events = eventRepository.findAll();
+        // Fetch events with all relationships in a single query
+        // This assumes you have a method in EventRepository that uses JOIN FETCH
+        List<Event> events = eventRepository.findAllWithImages();
         for (Event event : events) {
             if (event.getImages() != null) {
                 event.getImages().sort(Comparator.comparing(img -> img.getOrder() != null ? img.getOrder() : Integer.MAX_VALUE));
@@ -121,33 +119,35 @@ public class EventController {
     /**
      * Example GET /api/events/recent response:
      * [
-     *   {
-     *     "id": 2,
-     *     "title": "Music Festival",
-     *     "category": { "id": 2, "name": "Music", "emoji": "🎵" },
-     *     "date": "2025-07-10",
-     *     "description": "A festival of music.",
-     *     "highlights": "Live Bands, Food Trucks",
-     *     "organizerNotes": "Outdoor event.",
-     *     "descriptions": [
-     *       { "title": "Main Stage", "description": "Live performances all day" }
-     *     ],
-     *     "location": "Central Park",
-     *     "featured": true,
-     *     "images": [
-     *       { "id": 12, "url": "/uploads/musicfest.png" }
-     *     ]
-     *   }
+     * {
+     * "id": 2,
+     * "title": "Music Festival",
+     * "category": { "id": 2, "name": "Music", "emoji": "🎵" },
+     * "date": "2025-07-10",
+     * "description": "A festival of music.",
+     * "highlights": "Live Bands, Food Trucks",
+     * "organizerNotes": "Outdoor event.",
+     * "descriptions": [
+     * { "title": "Main Stage", "description": "Live performances all day" }
+     * ],
+     * "location": "Central Park",
+     * "featured": true,
+     * "images": [
+     * { "id": 12, "url": "/uploads/musicfest.png" }
      * ]
-     *
+     * }
+     * ]
+     * <p>
      * Each event object now includes a boolean "featured" property indicating if the event is featured.
      */
     @GetMapping("/events/recent")
     public List<Event> getRecentEvents() {
-        List<Event> events = eventRepository.findAll().stream()
-                .sorted(Comparator.comparing(Event::getDate).reversed())
+        // Use optimized repository method to fetch recent events with images in a single query
+        List<Event> events = eventRepository.findRecentEventsWithImages().stream()
                 .limit(10)
                 .toList();
+
+        // Sort images by order for consistent display
         for (Event event : events) {
             if (event.getImages() != null) {
                 event.getImages().sort(Comparator.comparing(img -> img.getOrder() != null ? img.getOrder() : Integer.MAX_VALUE));
@@ -158,7 +158,7 @@ public class EventController {
 
     /**
      * Example POST /api/events request (multipart/form-data):
-     *
+     * <p>
      * title: "Tech Conference"
      * category: "Tech"
      * date: "2025-06-01"
@@ -169,37 +169,38 @@ public class EventController {
      * location: "Conference Center, City"
      * featured: true
      * images: (file upload, can attach multiple images)
-     *
+     * <p>
      * Example response:
      * {
-     *   "id": 1,
-     *   "title": "Tech Conference",
-     *   "category": { "id": 1, "name": "Tech", "emoji": "💻" },
-     *   "date": "2025-06-01",
-     *   "description": "A conference about technology.",
-     *   "highlights": "Keynote, Workshops",
-     *   "organizerNotes": "Bring your laptop.",
-     *   "descriptions": [
-     *     { "title": "Keynote", "description": "Opening speech by CEO" },
-     *     { "title": "Workshop", "description": "Hands-on coding session" }
-     *   ],
-     *   "location": "Conference Center, City",
-     *   "featured": true,
-     *   "images": [
-     *     { "id": 10, "url": "/uploads/abc123_image.png" }
-     *   ]
+     * "id": 1,
+     * "title": "Tech Conference",
+     * "category": { "id": 1, "name": "Tech", "emoji": "💻" },
+     * "date": "2025-06-01",
+     * "description": "A conference about technology.",
+     * "highlights": "Keynote, Workshops",
+     * "organizerNotes": "Bring your laptop.",
+     * "descriptions": [
+     * { "title": "Keynote", "description": "Opening speech by CEO" },
+     * { "title": "Workshop", "description": "Hands-on coding session" }
+     * ],
+     * "location": "Conference Center, City",
+     * "featured": true,
+     * "images": [
+     * { "id": 10, "url": "/uploads/abc123_image.png" }
+     * ]
      * }
-     *
+     * <p>
      * Example error response:
      * { "error": "Invalid date format" }
      * { "error": "Invalid descriptions JSON" }
-     *
+     * <p>
      * The response now includes a boolean "featured" property in the event object.
      */
     @PostMapping("/events")
     public ResponseEntity<?> addEvent(
             @RequestParam String title,
             @RequestParam String category,
+            @RequestParam(required = false) String categoryEmoji,
             @RequestParam String date,
             @RequestParam(required = false) String description,
             @RequestParam(required = false) String highlights,
@@ -210,14 +211,14 @@ public class EventController {
             @RequestParam(required = false, defaultValue = "false") boolean featured,
             HttpServletRequest request
     ) {
-        // 1. Check if category exists, if not, add it with a default emoji
+        // 1. Check if category exists, if not, add it with provided emoji or default
         Category cat = categoryRepository.findByName(category)
-            .orElseGet(() -> {
-                Category newCat = new Category();
-                newCat.setName(category);
-                newCat.setEmoji("❓"); // Default emoji if not provided
-                return categoryRepository.save(newCat);
-            });
+                .orElseGet(() -> {
+                    Category newCat = new Category();
+                    newCat.setName(category);
+                    newCat.setEmoji(categoryEmoji != null ? categoryEmoji : "❓"); // Use provided emoji or default
+                    return categoryRepository.save(newCat);
+                });
         // 2. Parse date
         LocalDate eventDate;
         try {
@@ -229,7 +230,8 @@ public class EventController {
         List<DescriptionSection> descList = new ArrayList<>();
         if (descriptions != null && !descriptions.isBlank()) {
             try {
-                descList = objectMapper.readValue(descriptions, new TypeReference<List<DescriptionSection>>(){});
+                descList = objectMapper.readValue(descriptions, new TypeReference<List<DescriptionSection>>() {
+                });
             } catch (Exception e) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Invalid descriptions JSON"));
             }
@@ -242,24 +244,33 @@ public class EventController {
         event.setDescription(description);
         event.setHighlights(highlights);
         event.setOrganizerNotes(organizerNotes);
-        event.setDescriptions(descList);        event.setLocation(location);
+        event.setDescriptions(descList);
+        event.setLocation(location);
         event.setFeatured(featured);
         event = eventRepository.save(event);
-        
+
         // Send notification for new event creation
         try {
             eventNotificationService.sendEventCreatedNotification(event.getId(), event.getTitle());
         } catch (Exception e) {
             System.err.println("Failed to send event created notification: " + e.getMessage());
         }
-        
-        // 5. Save images
+
+        // 5. Save images to Supabase Storage
+        System.out.println("=== IMAGE UPLOAD DEBUG ===");
+        System.out.println("Images parameter: " + (images != null ? images.length : "null"));
+        if (images != null) {
+            for (int i = 0; i < images.length; i++) {
+                System.out.println("Image " + i + ": " + images[i].getOriginalFilename() + " (" + images[i].getSize() + " bytes)");
+            }
+        }
+
         List<EventImage> imageEntities = new ArrayList<>();
         if (images != null) {
-            String uploadDir = "src/main/resources/static/uploads/";
-            new File(uploadDir).mkdirs();
+            String bucket = "images"; // Changed from "event-files" to "images"
             for (int i = 0; i < images.length; i++) {
                 MultipartFile file = images[i];
+                System.out.println("Processing image " + i + ": " + file.getOriginalFilename() + ", empty: " + file.isEmpty());
                 if (!file.isEmpty()) {
                     try {
                         String extension = "";
@@ -270,22 +281,30 @@ public class EventController {
                                 extension = originalName.substring(dotIdx);
                             }
                         }
-                        String fileName = UUID.randomUUID().toString() + extension;
-                        Path filePath = Paths.get(uploadDir, fileName);
-                        Files.write(filePath, file.getBytes());
+                        String fileName = UUID.randomUUID() + extension;
+                        String supabasePath = event.getId() + "/" + fileName;
+                        System.out.println("Uploading to Supabase: " + supabasePath);
+                        String supabaseUrl = supabaseStorageService.uploadCompressedImage(file, bucket, supabasePath);
+                        System.out.println("Got URL back: " + supabaseUrl);
                         EventImage img = new EventImage();
-                        img.setUrl("/uploads/" + fileName);
+                        img.setUrl(supabaseUrl);
                         img.setEvent(event);
-                        img.setOrder(i); // Set order based on upload order
+                        img.setOrder(i);
                         imageEntities.add(img);
+                        System.out.println("✅ Image entity created successfully");
                     } catch (IOException e) {
-                        // skip this image
+                        System.err.println("❌ Error uploading image: " + e.getMessage());
+                        e.printStackTrace();
                     }
                 }
             }
+            System.out.println("Saving " + imageEntities.size() + " image entities to database");
             eventImageRepository.saveAll(imageEntities);
             event.setImages(imageEntities);
         }
+        System.out.println("Final event has " + (event.getImages() != null ? event.getImages().size() : 0) + " images");
+        System.out.println("=== END IMAGE UPLOAD DEBUG ===");
+
         // 6. Return event info
         // Ensure images are sorted by order in the response
         if (event.getImages() != null) {
@@ -297,32 +316,33 @@ public class EventController {
     /**
      * Example GET /api/events/{id} response:
      * {
-     *   "id": 1,
-     *   "title": "Tech Conference",
-     *   "category": { "id": 1, "name": "Tech", "emoji": "💻" },
-     *   "date": "2025-06-01",
-     *   "description": "A conference about technology.",
-     *   "highlights": "Keynote, Workshops",
-     *   "organizerNotes": "Bring your laptop.",
-     *   "descriptions": [
-     *     { "title": "Keynote", "description": "Opening speech by CEO" },
-     *     { "title": "Workshop", "description": "Hands-on coding session" }
-     *   ],
-     *   "location": "Conference Center, City",
-     *   "featured": false,
-     *   "images": [
-     *     { "id": 10, "url": "/api/images/abc123_image.png" }
-     *   ]
+     * "id": 1,
+     * "title": "Tech Conference",
+     * "category": { "id": 1, "name": "Tech", "emoji": "💻" },
+     * "date": "2025-06-01",
+     * "description": "A conference about technology.",
+     * "highlights": "Keynote, Workshops",
+     * "organizerNotes": "Bring your laptop.",
+     * "descriptions": [
+     * { "title": "Keynote", "description": "Opening speech by CEO" },
+     * { "title": "Workshop", "description": "Hands-on coding session" }
+     * ],
+     * "location": "Conference Center, City",
+     * "featured": false,
+     * "images": [
+     * { "id": 10, "url": "/api/images/abc123_image.png" }
+     * ]
      * }
-     *
+     * <p>
      * Example error response:
      * { "error": "Event not found" }
-     *
+     * <p>
      * The response now includes a boolean "featured" property in the event object.
      */
     @GetMapping("/events/{id}")
     public ResponseEntity<?> getEventById(@PathVariable Long id) {
-        return eventRepository.findById(id)
+        // Use optimized repository method that fetches event with images in a single query
+        return eventRepository.findByIdWithImages(id)
                 .map(event -> {
                     if (event.getImages() != null) {
                         event.getImages().sort(Comparator.comparing(img -> img.getOrder() != null ? img.getOrder() : Integer.MAX_VALUE));
@@ -335,48 +355,48 @@ public class EventController {
     /**
      * Example PUT /api/events/{id} request body:
      * {
-     *   "title": "Updated Tech Conference",
-     *   "category": { "id": 1, "name": "Tech", "emoji": "💻" },
-     *   "date": "2025-07-01",
-     *   "description": "An updated conference about technology.",
-     *   "highlights": "Keynote, Advanced Workshops",
-     *   "organizerNotes": "Bring your laptop and charger.",
-     *   "descriptions": [
-     *     { "title": "Keynote", "description": "Opening speech by CTO" },
-     *     { "title": "Advanced Workshop", "description": "Deep dive into coding" }
-     *   ],
-     *   "location": "Conference Center, City",
-     *   "featured": true,
-     *   "images": [
-     *     { "id": 10, "url": "/uploads/abc123_image.png" },
-     *     { "id": 11, "url": "/uploads/def456_image.png" }
-     *   ]
+     * "title": "Updated Tech Conference",
+     * "category": { "id": 1, "name": "Tech", "emoji": "💻" },
+     * "date": "2025-07-01",
+     * "description": "An updated conference about technology.",
+     * "highlights": "Keynote, Advanced Workshops",
+     * "organizerNotes": "Bring your laptop and charger.",
+     * "descriptions": [
+     * { "title": "Keynote", "description": "Opening speech by CTO" },
+     * { "title": "Advanced Workshop", "description": "Deep dive into coding" }
+     * ],
+     * "location": "Conference Center, City",
+     * "featured": true,
+     * "images": [
+     * { "id": 10, "url": "/uploads/abc123_image.png" },
+     * { "id": 11, "url": "/uploads/def456_image.png" }
+     * ]
      * }
-     *
+     * <p>
      * Example response:
      * {
-     *   "id": 1,
-     *   "title": "Updated Tech Conference",
-     *   "category": { "id": 1, "name": "Tech", "emoji": "💻" },
-     *   "date": "2025-07-01",
-     *   "description": "An updated conference about technology.",
-     *   "highlights": "Keynote, Advanced Workshops",
-     *   "organizerNotes": "Bring your laptop and charger.",
-     *   "descriptions": [
-     *     { "title": "Keynote", "description": "Opening speech by CTO" },
-     *     { "title": "Advanced Workshop", "description": "Deep dive into coding" }
-     *   ],
-     *   "location": "Conference Center, City",
-     *   "featured": true,
-     *   "images": [
-     *     { "id": 10, "url": "/uploads/abc123_image.png" },
-     *     { "id": 11, "url": "/uploads/def456_image.png" }
-     *   ]
+     * "id": 1,
+     * "title": "Updated Tech Conference",
+     * "category": { "id": 1, "name": "Tech", "emoji": "💻" },
+     * "date": "2025-07-01",
+     * "description": "An updated conference about technology.",
+     * "highlights": "Keynote, Advanced Workshops",
+     * "organizerNotes": "Bring your laptop and charger.",
+     * "descriptions": [
+     * { "title": "Keynote", "description": "Opening speech by CTO" },
+     * { "title": "Advanced Workshop", "description": "Deep dive into coding" }
+     * ],
+     * "location": "Conference Center, City",
+     * "featured": true,
+     * "images": [
+     * { "id": 10, "url": "/uploads/abc123_image.png" },
+     * { "id": 11, "url": "/uploads/def456_image.png" }
+     * ]
      * }
-     *
+     * <p>
      * Example error response:
      * { "error": "Event not found" }
-     *
+     * <p>
      * The request and response now include a boolean "featured" property in the event object.
      */
     @PutMapping("/events/{id}")
@@ -392,7 +412,7 @@ public class EventController {
                     .map(event -> {                        // Check if featured status is changing
                         boolean featuredChanged = event.isFeatured() != updatedEvent.isFeatured();
                         boolean newFeaturedStatus = updatedEvent.isFeatured();
-                        
+
                         // Update all fields
                         event.setTitle(updatedEvent.getTitle());
                         event.setDate(updatedEvent.getDate());
@@ -435,8 +455,7 @@ public class EventController {
 
                         // 3. Handle new image uploads
                         if (newImages != null) {
-                            String uploadDir = "src/main/resources/static/uploads/";
-                            new File(uploadDir).mkdirs();
+                            String bucket = "event-files";
                             int startOrder = existingImages.size();
                             for (int i = 0; i < newImages.length; i++) {
                                 MultipartFile file = newImages[i];
@@ -450,11 +469,11 @@ public class EventController {
                                                 extension = originalName.substring(dotIdx);
                                             }
                                         }
-                                        String fileName = UUID.randomUUID().toString() + extension;
-                                        Path filePath = Paths.get(uploadDir, fileName);
-                                        Files.write(filePath, file.getBytes());
+                                        String fileName = UUID.randomUUID() + extension;
+                                        String supabasePath = event.getId() + "/" + fileName;
+                                        String supabaseUrl = supabaseStorageService.uploadCompressedImage(file, bucket, supabasePath);
                                         EventImage img = new EventImage();
-                                        img.setUrl("/uploads/" + fileName);
+                                        img.setUrl(supabaseUrl);
                                         img.setEvent(event);
                                         img.setOrder(startOrder + i);
                                         existingImages.add(img);
@@ -480,8 +499,10 @@ public class EventController {
                             return Integer.MAX_VALUE;
                         }));
                         for (int i = 0; i < existingImages.size(); i++) {
-                            existingImages.get(i).setOrder(i);                        }                        eventRepository.save(event);
-                        
+                            existingImages.get(i).setOrder(i);
+                        }
+                        eventRepository.save(event);
+
                         // Send notifications based on what changed
                         try {
                             if (featuredChanged) {
@@ -494,7 +515,7 @@ public class EventController {
                         } catch (Exception e) {
                             System.err.println("Failed to send event notification: " + e.getMessage());
                         }
-                        
+
                         // Ensure images are sorted by order if present
                         if (event.getImages() != null) {
                             event.getImages().sort(Comparator.comparing(img -> img.getOrder() != null ? img.getOrder() : Integer.MAX_VALUE));
@@ -526,22 +547,23 @@ public class EventController {
         }
         Feedback feedback = new Feedback();
         feedback.setName(name);
-        feedback.setText(text);        feedback.setEvent(eventOpt.get());
+        feedback.setText(text);
+        feedback.setEvent(eventOpt.get());
         Feedback saved = feedbackRepository.save(feedback);
-        
+
         // Send notification for new feedback
         try {
             Event event = eventOpt.get();
             eventNotificationService.sendEventFeedbackNotification(
-                event.getId(), 
-                event.getTitle(), 
-                saved.getName(), 
-                saved.getText()
+                    event.getId(),
+                    event.getTitle(),
+                    saved.getName(),
+                    saved.getText()
             );
         } catch (Exception e) {
             System.err.println("Failed to send event feedback notification: " + e.getMessage());
         }
-        
+
         // Return feedback without event to avoid recursion
         Map<String, Object> resp = new HashMap<>();
         resp.put("id", saved.getId());
@@ -556,21 +578,24 @@ public class EventController {
      */
     @GetMapping("/events/{id}/feedback")
     public ResponseEntity<?> getFeedbackForEvent(@PathVariable Long id) {
-        Optional<Event> eventOpt = eventRepository.findById(id);
-        if (eventOpt.isEmpty()) {
+        // First check if the event exists
+        if (!eventRepository.existsById(id)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Event not found"));
         }
-        List<Feedback> feedbacks = feedbackRepository.findAll();
+
+        // Use optimized repository method to fetch feedback for event in a single query
+        List<Feedback> feedbacks = feedbackRepository.findAllByEventId(id);
+
+        // Map to the response format without querying for events again
         List<Map<String, Object>> result = new ArrayList<>();
         for (Feedback fb : feedbacks) {
-            if (fb.getEvent() != null && fb.getEvent().getId().equals(id)) {
-                Map<String, Object> map = new HashMap<>();
-                map.put("id", fb.getId());
-                map.put("name", fb.getName());
-                map.put("text", fb.getText());
-                result.add(map);
-            }
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", fb.getId());
+            map.put("name", fb.getName());
+            map.put("text", fb.getText());
+            result.add(map);
         }
+
         return ResponseEntity.ok(result);
     }
 
@@ -580,11 +605,15 @@ public class EventController {
      */
     @GetMapping("/feedbacks/recent")
     public ResponseEntity<?> getRecentFeedbacks() {
-        List<Feedback> all = feedbackRepository.findAll();
-        all.sort((a, b) -> Long.compare(b.getId(), a.getId()));
+        // Use optimized repository method that fetches feedback with event details in a single query
+        List<Feedback> feedbacks = feedbackRepository.findRecentFeedbackWithEvents();
+
+        // Map to response format and limit to 10 results
         List<Map<String, Object>> result = new ArrayList<>();
-        for (int i = 0; i < Math.min(10, all.size()); i++) {
-            Feedback fb = all.get(i);
+        int count = 0;
+        for (Feedback fb : feedbacks) {
+            if (count >= 10) break;
+
             Map<String, Object> map = new HashMap<>();
             map.put("id", fb.getId());
             map.put("name", fb.getName());
@@ -594,7 +623,9 @@ public class EventController {
                 map.put("eventTitle", fb.getEvent().getTitle());
             }
             result.add(map);
+            count++;
         }
+
         return ResponseEntity.ok(result);
     }
 
@@ -612,15 +643,31 @@ public class EventController {
     }
 
     /**
+     * DELETE /api/events/{id}
+     * Deletes an event by its ID (admin only, requires authentication)
+     */
+    @DeleteMapping("/events/{id}")
+    public ResponseEntity<?> deleteEvent(@PathVariable Long id) {
+        // Check if event exists
+        if (!eventRepository.existsById(id)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Event not found"));
+        }
+
+        // Delete the event (this will also cascade delete related images and feedbacks)
+        eventRepository.deleteById(id);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Event deleted successfully"));
+    }
+
+    /**
      * GET /api/global-discount
      * Returns the current global discount percentage (as a number, e.g. 10 for 10%)
      */
     @GetMapping("/global-discount")
     public ResponseEntity<?> getGlobalDiscount() {
         return ResponseEntity.ok(Map.of(
-            "discount", globalSettingRepository.findByKey("global_discount")
-                .map(gs -> gs.getValue())
-                .orElse("0")
+                "discount", globalSettingRepository.findByKey("global_discount")
+                        .map(gs -> gs.getValue())
+                        .orElse("0")
         ));
     }
 
@@ -635,83 +682,65 @@ public class EventController {
         String discountStr = discountObj.toString();
         try {
             double val = Double.parseDouble(discountStr);
-            if (val < 0 || val > 100) return ResponseEntity.badRequest().body(Map.of("error", "Discount must be 0-100"));
+            if (val < 0 || val > 100)
+                return ResponseEntity.badRequest().body(Map.of("error", "Discount must be 0-100"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid discount value"));
-        }        GlobalSetting setting = globalSettingRepository.findByKey("global_discount").orElse(new GlobalSetting("global_discount", discountStr));
+        }
+        GlobalSetting setting = globalSettingRepository.findByKey("global_discount").orElse(new GlobalSetting("global_discount", discountStr));
         setting.setValue(discountStr);
         globalSettingRepository.save(setting);
         return ResponseEntity.ok(Map.of("discount", discountStr));
     }
 
     /**
-     * POST /api/test-notifications
-     * Test endpoint to demonstrate the EventNotificationService functionality
-     * Request body: { "eventId": 1, "notificationType": "created|updated|feedback|featured|unfeatured|custom", "message": "optional custom message" }
+     * GET /api/events/sorted
+     * Retrieve all events with robust server-side sorting.
+     * Query params:
+     * - sort (field name, e.g. 'title', 'date', 'id', 'category', 'featured')
+     * - order ('asc' or 'desc', default 'asc')
+     * Example: /api/events/sorted?sort=date&order=desc
      */
-    @PostMapping("/test-notifications")
-    public ResponseEntity<?> testNotifications(@RequestBody Map<String, Object> payload) {
-        Object eventIdObj = payload.get("eventId");
-        String notificationType = (String) payload.get("notificationType");
-        String customMessage = (String) payload.get("message");
-        
-        if (eventIdObj == null || notificationType == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Missing eventId or notificationType"));
-        }
-        
-        Long eventId;
-        try {
-            eventId = Long.parseLong(eventIdObj.toString());
-        } catch (NumberFormatException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid eventId format"));
-        }
-        
-        // Check if event exists
-        Optional<Event> eventOpt = eventRepository.findById(eventId);
-        if (eventOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Event not found"));
-        }
-        
-        Event event = eventOpt.get();
-        String eventTitle = event.getTitle();
-        
-        try {
-            switch (notificationType.toLowerCase()) {
-                case "created":
-                    eventNotificationService.sendEventCreatedNotification(eventId, eventTitle);
+    @GetMapping("/events/sorted")
+    public List<Event> getAllEventsSorted(
+            @RequestParam(defaultValue = "id") String sort,
+            @RequestParam(defaultValue = "asc") String order
+    ) {
+        List<Event> events = eventRepository.findAllWithImages();
+        events.sort((a, b) -> {
+            int cmp = 0;
+            switch (sort) {
+                case "title":
+                    cmp = a.getTitle().compareToIgnoreCase(b.getTitle());
                     break;
-                case "updated":
-                    eventNotificationService.sendEventUpdatedNotification(eventId, eventTitle);
+                case "date":
+                    cmp = a.getDate() != null && b.getDate() != null ?
+                            a.getDate().compareTo(b.getDate()) : 0;
                     break;
-                case "feedback":
-                    eventNotificationService.sendEventFeedbackNotification(eventId, eventTitle, 
-                        "Test User", customMessage != null ? customMessage : "This is a test feedback message for demonstration purposes.");
+                case "category":
+                    String aCat = a.getCategory() != null ? a.getCategory().getName() : "";
+                    String bCat = b.getCategory() != null ? b.getCategory().getName() : "";
+                    cmp = aCat.compareToIgnoreCase(bCat);
                     break;
                 case "featured":
-                    eventNotificationService.sendEventFeaturedNotification(eventId, eventTitle, true);
+                    cmp = Boolean.compare(a.isFeatured(), b.isFeatured());
                     break;
-                case "unfeatured":
-                    eventNotificationService.sendEventFeaturedNotification(eventId, eventTitle, false);
-                    break;
-                case "custom":
-                    eventNotificationService.sendCustomEventNotification(eventId, eventTitle, 
-                        "Test Custom Notification", customMessage != null ? customMessage : "This is a test custom notification message.");
+                case "id":
+                    cmp = Long.compare(a.getId(), b.getId());
                     break;
                 default:
-                    return ResponseEntity.badRequest().body(Map.of("error", "Invalid notificationType. Use: created, updated, feedback, featured, unfeatured, or custom"));
+                    cmp = 0;
             }
-            
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Notification sent successfully",
-                "eventId", eventId,
-                "eventTitle", eventTitle,
-                "notificationType", notificationType
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                "error", "Failed to send notification: " + e.getMessage()
-            ));
+            return "desc".equalsIgnoreCase(order) ? -cmp : cmp;
+        });
+
+        // Sort images by order for consistent display
+        for (Event event : events) {
+            if (event.getImages() != null) {
+                event.getImages().sort(Comparator.comparing(img -> img.getOrder() != null ? img.getOrder() : Integer.MAX_VALUE));
+            }
         }
+
+        return events;
     }
 }

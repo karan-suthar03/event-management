@@ -1,32 +1,29 @@
-# Use OpenJDK 17 as base image
-FROM openjdk:17-jdk-slim
+# Use OpenJDK 17 with Alpine for smaller image size
+FROM openjdk:17-jdk-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy Maven wrapper and pom.xml first for better caching
-COPY mvnw .
-COPY mvnw.cmd .
-COPY .mvn .mvn
+# Install maven
+RUN apk add --no-cache maven
+
+# Copy pom.xml first for better Docker layer caching
 COPY pom.xml .
 
-# Make Maven wrapper executable
-RUN chmod +x ./mvnw
-
 # Download dependencies (this layer will be cached if pom.xml doesn't change)
-RUN ./mvnw dependency:go-offline -B
+RUN mvn dependency:go-offline -B
 
 # Copy source code
 COPY src ./src
 
-# Build the application
-RUN ./mvnw clean package -DskipTests
+# Build the application (skip tests for faster builds on Render)
+RUN mvn clean package -DskipTests
 
-# Expose port
+# Expose the port that Render will use
 EXPOSE 8080
 
-# Create uploads directory
-RUN mkdir -p /app/uploads
+# Set active profile to production
+ENV SPRING_PROFILES_ACTIVE=production
 
-# Run the application with Docker profile
-CMD ["java", "-jar", "-Dspring.profiles.active=docker", "target/backend-0.0.1-SNAPSHOT.jar"]
+# Run the JAR file
+CMD ["java", "-jar", "target/backend-0.0.1-SNAPSHOT.jar"]
