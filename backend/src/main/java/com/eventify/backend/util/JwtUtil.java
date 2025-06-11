@@ -10,7 +10,6 @@ import io.jsonwebtoken.security.SignatureException;
 import java.util.Date;
 import javax.crypto.SecretKey;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +18,6 @@ public class JwtUtil {
     private final SecretKey secretKey;
     private static final long EXPIRATION_TIME = 60 * 60 * 1000 * 24; // 24 hours
 
-    @Autowired
     public JwtUtil(@Value("${jwt.secret}") String secret) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes());
     }
@@ -65,7 +63,6 @@ public class JwtUtil {
 
     public boolean isTokenExpired(String token) {
         try {
-            Claims claims = validateToken(token);
             return false; // If validation succeeds, token is not expired
         } catch (ExpiredJwtException e) {
             return true;
