@@ -4,18 +4,17 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "admins")
-public class Admin {
-    @Id
+public class Admin {    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 100)
     private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String password;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String name;
 
     public Long getId() { return id; }

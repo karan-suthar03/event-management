@@ -5,12 +5,11 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "event_images")
-public class EventImage {
-    @Id
+public class EventImage {    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 2000)
     private String url;
 
     @Column(name = "image_order")

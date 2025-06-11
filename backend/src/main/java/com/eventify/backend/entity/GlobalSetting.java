@@ -3,15 +3,14 @@ package com.eventify.backend.entity;
 import jakarta.persistence.*;
 
 @Entity
-public class GlobalSetting {
-    @Id
+public class GlobalSetting {    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 200)
     private String key;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 2000)
     private String value;
 
     public GlobalSetting() {}

@@ -15,99 +15,133 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.logging.Logger;
 
 @Service
-public class SupabaseStorageService {    @Value("${supabase.url}")
+public class SupabaseStorageService {
+    
+    private static final Logger logger = Logger.getLogger(SupabaseStorageService.class.getName());
+    private static final long MAX_FALLBACK_SIZE = 5 * 1024 * 1024; // 5MB
+
+    @Value("${supabase.url}")
     private String supabaseUrl;
     
     @Value("${supabase.service.key}")
-    private String supabaseServiceKey;    public String uploadCompressedImage(MultipartFile file, String bucket, String path) throws IOException {
-        System.out.println("=== SUPABASE UPLOAD DEBUG ===");
-        System.out.println("File name: " + file.getOriginalFilename());
-        System.out.println("File size: " + file.getSize());
-        System.out.println("Bucket: " + bucket);
-        System.out.println("Path: " + path);
-        System.out.println("Supabase URL: " + supabaseUrl);
-        
-        // First, ensure the bucket exists
+    private String supabaseServiceKey;
+
+    /**
+     * Uploads and compresses an image file to Supabase Storage.
+     * Supports WebP, JPEG, PNG, GIF, BMP formats.
+     * Falls back to original file if compression fails and file is under 5MB.
+     * 
+     * @param file The image file to upload
+     * @param bucket The Supabase storage bucket name
+     * @param path The file path within the bucket
+     * @return The public URL of the uploaded image
+     * @throws IOException If upload fails or file is too large
+     */
+    public String uploadCompressedImage(MultipartFile file, String bucket, String path) throws IOException {
+        // Ensure the bucket exists
         try {
             createBucketIfNotExists(bucket);
         } catch (Exception e) {
-            System.err.println("Warning: Could not create/verify bucket: " + e.getMessage());
+            logger.warning("Could not create/verify bucket: " + e.getMessage());
         }
         
         // Compress image using Thumbnailator
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        Thumbnails.of(file.getInputStream())
-                .size(1024, 1024)
-                .outputQuality(0.7)
-                .toOutputStream(outputStream);
-        byte[] compressedBytes = outputStream.toByteArray();
+        try {
+            // Convert to JPEG format for optimal compression and compatibility
+            Thumbnails.of(file.getInputStream())
+                    .size(1024, 1024)
+                    .outputQuality(0.7)
+                    .outputFormat("JPEG")
+                    .toOutputStream(outputStream);
+        } catch (Exception e) {
+            // Fallback: use original file if compression fails and file is small enough
+            if (file.getSize() <= MAX_FALLBACK_SIZE) {
+                logger.info("Using original file without compression due to format issue: " + file.getOriginalFilename());
+                try {
+                    file.getInputStream().transferTo(outputStream);
+                } catch (IOException ioE) {
+                    throw new IOException("Failed to process image file: " + e.getMessage());
+                }
+            } else {
+                throw new IOException("Image file is too large and cannot be compressed. " +
+                    "Supported formats: JPEG, PNG, GIF, BMP, WebP. Maximum size for fallback: 5MB. " +
+                    "File: " + file.getOriginalFilename());
+            }
+        }
         
-        System.out.println("Compressed size: " + compressedBytes.length);
+        byte[] imageBytes = outputStream.toByteArray();
+        
+        // Determine content type
+        String contentType = determineContentType(file, imageBytes);
+        
+        // Upload to Supabase Storage
+        return uploadToSupabase(imageBytes, contentType, bucket, path);
+    }
 
-        // Prepare Supabase Storage upload URL
+    /**
+     * Determines the appropriate content type for the upload
+     */
+    private String determineContentType(MultipartFile file, byte[] processedBytes) {
+        // If we compressed the image, it's now JPEG
+        if (processedBytes.length != file.getSize()) {
+            return "image/jpeg";
+        }
+        // Otherwise, use original content type or default to JPEG
+        return file.getContentType() != null ? file.getContentType() : "image/jpeg";
+    }
+
+    /**
+     * Uploads the processed image bytes to Supabase Storage
+     */
+    private String uploadToSupabase(byte[] imageBytes, String contentType, String bucket, String path) throws IOException {
         String uploadUrl = String.format("%s/storage/v1/object/%s/%s", supabaseUrl, bucket, path);
-        System.out.println("Upload URL: " + uploadUrl);        // Upload to Supabase Storage using HTTP client
+        
         try (CloseableHttpClient client = HttpClients.createDefault()) {
             HttpPost post = new HttpPost(uploadUrl);
             post.setHeader("Authorization", "Bearer " + supabaseServiceKey);
-            post.setHeader("Content-Type", "image/jpeg");
+            post.setHeader("Content-Type", contentType);
             post.setHeader("Cache-Control", "3600");
             post.setHeader("x-upsert", "true");
             
-            ByteArrayEntity entity = new ByteArrayEntity(compressedBytes, ContentType.IMAGE_JPEG);
+            ByteArrayEntity entity = new ByteArrayEntity(imageBytes, ContentType.create(contentType));
             post.setEntity(entity);
-            
-            System.out.println("Sending request to Supabase...");
-            System.out.println("Headers: ");
-            System.out.println("  Authorization: Bearer " + supabaseServiceKey.substring(0, 20) + "...");
-            System.out.println("  Content-Type: image/jpeg");
-            System.out.println("  x-upsert: true");
             
             return client.execute(post, response -> {
                 int status = response.getCode();
-                System.out.println("Supabase response status: " + status);
-                
-                // Read response body for debugging
-                HttpEntity responseEntity = response.getEntity();
-                String responseBody = "";
-                if (responseEntity != null) {
-                    try {
-                        responseBody = EntityUtils.toString(responseEntity);
-                        System.out.println("Supabase response body: " + responseBody);
-                    } catch (Exception e) {
-                        System.err.println("Error reading response body: " + e.getMessage());
-                    }
-                }
                 
                 if (status < 200 || status >= 300) {
-                    System.err.println("ERROR: Failed to upload to Supabase: " + status);
+                    String responseBody = "";
+                    HttpEntity responseEntity = response.getEntity();
+                    if (responseEntity != null) {
+                        try {
+                            responseBody = EntityUtils.toString(responseEntity);
+                        } catch (Exception e) {
+                            logger.warning("Error reading response body: " + e.getMessage());
+                        }
+                    }
                     
-                    // Provide specific error guidance
-                    if (status == 403 || (responseBody.contains("Unauthorized") || responseBody.contains("signature verification failed"))) {
-                        System.err.println("❌ AUTHENTICATION ERROR: Your Supabase service key is invalid or expired.");
-                        System.err.println("📋 Please get a new service key from: https://supabase.com/dashboard/project/sddtrrwndrdrgnpcgupq/settings/api");
-                        System.err.println("🔧 Then update the 'supabase.service.key' property in application.properties");
+                    // Log specific authentication errors
+                    if (status == 403 || responseBody.contains("Unauthorized")) {
+                        logger.severe("Supabase authentication failed. Check service key configuration.");
                     }
                     
                     throw new IOException("Failed to upload image to Supabase: " + status + " - " + responseBody);
-                } else {
-                    System.out.println("✅ Upload successful!");
                 }
                 
                 // Return the public URL for the uploaded image
-                String publicUrl = String.format("%s/storage/v1/object/public/%s/%s", supabaseUrl, bucket, path);
-                System.out.println("Public URL: " + publicUrl);
-                System.out.println("=== END SUPABASE DEBUG ===");
-                return publicUrl;
+                return String.format("%s/storage/v1/object/public/%s/%s", supabaseUrl, bucket, path);
             });
         }
     }
     
+    /**
+     * Creates a Supabase storage bucket if it doesn't exist
+     */
     public void createBucketIfNotExists(String bucket) throws IOException {
-        System.out.println("=== CREATING BUCKET: " + bucket + " ===");
-        
         String createBucketUrl = String.format("%s/storage/v1/bucket", supabaseUrl);
         String bucketJson = String.format("{\"id\":\"%s\",\"name\":\"%s\",\"public\":true}", bucket, bucket);
         
@@ -119,34 +153,20 @@ public class SupabaseStorageService {    @Value("${supabase.url}")
             StringEntity entity = new StringEntity(bucketJson, ContentType.APPLICATION_JSON);
             post.setEntity(entity);
             
-            System.out.println("Creating bucket with URL: " + createBucketUrl);
-            System.out.println("Bucket JSON: " + bucketJson);
-            
             client.execute(post, response -> {
                 int status = response.getCode();
-                System.out.println("Create bucket response status: " + status);
-                
-                HttpEntity responseEntity = response.getEntity();
-                if (responseEntity != null) {
-                    try {
-                        String responseBody = EntityUtils.toString(responseEntity);
-                        System.out.println("Create bucket response: " + responseBody);
-                    } catch (Exception e) {
-                        System.err.println("Error reading create bucket response: " + e.getMessage());
-                    }
-                }
                 
                 if (status == 200 || status == 201) {
-                    System.out.println("✅ Bucket created successfully!");
+                    logger.info("Bucket created successfully: " + bucket);
                 } else if (status == 409) {
-                    System.out.println("✅ Bucket already exists!");
+                    // Bucket already exists - this is fine
+                    logger.fine("Bucket already exists: " + bucket);
                 } else {
-                    System.err.println("❌ Failed to create bucket: " + status);
+                    logger.warning("Failed to create bucket " + bucket + ": " + status);
                 }
                 
                 return null;
             });
         }
-        System.out.println("=== END BUCKET CREATION ===");
     }
 }

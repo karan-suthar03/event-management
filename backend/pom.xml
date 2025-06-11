@@ -122,6 +122,13 @@
             <version>0.4.20</version>
         </dependency>
         
+        <!-- WebP image format support -->
+        <dependency>
+            <groupId>org.sejda.imageio</groupId>
+            <artifactId>webp-imageio</artifactId>
+            <version>0.1.6</version>
+        </dependency>
+        
         <!-- HTTP client for Supabase REST API -->
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>

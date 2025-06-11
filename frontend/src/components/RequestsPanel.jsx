@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { HiOutlineBell, HiCheckCircle, HiTrash } from "react-icons/hi2";
+import React, {useEffect, useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {HiCheckCircle, HiOutlineBell, HiTrash} from "react-icons/hi2";
 import apiService from "../utils/apiService";
-import authService from "../utils/authService";
 
 const RequestsPanel = () => {
     const [requests, setRequests] = useState([]);
@@ -12,7 +11,8 @@ const RequestsPanel = () => {
 
     useEffect(() => {
         fetchRequests();
-    }, []);    const fetchRequests = async () => {
+    }, []);
+    const fetchRequests = async () => {
         setLoading(true);
         try {
             const data = await apiService.get("/api/event-requests", true);
@@ -27,11 +27,12 @@ const RequestsPanel = () => {
         } finally {
             setLoading(false);
         }
-    };    const handleMarkViewed = async (id) => {
+    };
+    const handleMarkViewed = async (id) => {
         try {
             await apiService.put(`/api/event-requests/${id}/viewed`, {}, true);
-            setRequests(requests.map(req => 
-                req.id === id ? { ...req, viewed: true } : req
+            setRequests(requests.map(req =>
+                req.id === id ? {...req, viewed: true} : req
             ));
         } catch (err) {
             console.error("Failed to mark request as viewed:", err);
@@ -72,8 +73,8 @@ const RequestsPanel = () => {
         return (
             <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
                 <p>{error}</p>
-                <button 
-                    onClick={fetchRequests} 
+                <button
+                    onClick={fetchRequests}
                     className="mt-2 text-sm underline hover:no-underline"
                 >
                     Try again
@@ -85,7 +86,7 @@ const RequestsPanel = () => {
     return (
         <div className="rounded-lg bg-slate-800 border border-slate-700 shadow-lg p-6 mt-6">
             <h2 className="text-2xl font-bold mb-6 text-purple-400 flex items-center">
-                <HiOutlineBell className="mr-2" />
+                <HiOutlineBell className="mr-2"/>
                 Customer Requests
             </h2>
 
@@ -96,11 +97,12 @@ const RequestsPanel = () => {
             ) : (
                 <div className="space-y-4">
                     {requests.map((request) => (
-                        <div 
-                            key={request.id} 
+                        <div
+                            key={request.id}
                             className={`relative rounded-lg p-4 ${request.viewed ? 'bg-slate-700' : 'bg-slate-700/80 border-l-4 border-purple-500'} transition-all duration-300`}
                         >
-                            <div className="flex justify-between flex-wrap gap-2">                                <div>
+                            <div className="flex justify-between flex-wrap gap-2">
+                                <div>
                                     <h3 className="font-bold text-lg text-white">
                                         {request.name}
                                     </h3>
@@ -113,7 +115,8 @@ const RequestsPanel = () => {
                                         </p>
                                     )}
                                     <p className="text-gray-300 mt-1">
-                                        <span className="font-medium">Request Type:</span> {request.requestType?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Event Request'}
+                                        <span
+                                            className="font-medium">Request Type:</span> {request.requestType?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Event Request'}
                                     </p>
                                     {request.eventTitle && (
                                         <p className="text-gray-300">
@@ -128,7 +131,7 @@ const RequestsPanel = () => {
                                             className="p-2 rounded-md bg-green-900/50 hover:bg-green-800 text-green-400 transition"
                                             title="Mark as viewed"
                                         >
-                                            <HiCheckCircle className="w-5 h-5" />
+                                            <HiCheckCircle className="w-5 h-5"/>
                                         </button>
                                     )}
                                     <button
@@ -136,7 +139,7 @@ const RequestsPanel = () => {
                                         className="p-2 rounded-md bg-red-900/50 hover:bg-red-800 text-red-400 transition"
                                         title="Delete request"
                                     >
-                                        <HiTrash className="w-5 h-5" />
+                                        <HiTrash className="w-5 h-5"/>
                                     </button>
                                 </div>
                             </div>

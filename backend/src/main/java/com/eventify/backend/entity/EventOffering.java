@@ -6,15 +6,12 @@ import java.util.List;
 
 @Entity
 @Table(name = "event_offerings")
-public class EventOffering {
-    @Id
+public class EventOffering {    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
+    private Long id;    @Column(nullable = false, length = 1000)
     private String title;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 2000)
     private String decorationImageUrl;
 
     @Column(nullable = false)

@@ -4,15 +4,14 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "categories")
-public class Category {
-    @Id
+public class Category {    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 500)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String emoji;
 
     public Long getId() { return id; }

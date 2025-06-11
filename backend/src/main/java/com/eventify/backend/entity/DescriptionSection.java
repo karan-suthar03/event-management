@@ -4,7 +4,10 @@ import jakarta.persistence.*;
 
 @Embeddable
 public class DescriptionSection {
+    @Column(length = 1000)
     private String title;
+    
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     public String getTitle() { return title; }

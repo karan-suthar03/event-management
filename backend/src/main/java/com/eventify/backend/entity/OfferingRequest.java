@@ -5,15 +5,14 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "offering_requests")
-public class OfferingRequest {
-    @Id
+public class OfferingRequest {    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String contact;
 
     @Column(length = 1000)
@@ -22,7 +21,7 @@ public class OfferingRequest {
     @Column(nullable = false)
     private Long offeringId;
 
-    @Column
+    @Column(length = 1000)
     private String offeringTitle;
 
     @Column

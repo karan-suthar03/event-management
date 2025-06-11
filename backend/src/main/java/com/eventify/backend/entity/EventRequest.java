@@ -5,17 +5,17 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "event_requests")
-public class EventRequest {
-    @Id
+public class EventRequest {    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String email;
 
+    @Column(length = 50)
     private String phone;
 
     @Column(columnDefinition = "TEXT")
@@ -23,9 +23,10 @@ public class EventRequest {
 
     private Long eventId;
 
+    @Column(length = 1000)
     private String eventTitle;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String requestType; // similar_event, custom_event, etc.
 
     @Column(nullable = false)

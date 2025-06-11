@@ -8,12 +8,11 @@ import java.util.List;
 
 @Entity
 @Table(name = "events")
-public class Event {
-    @Id
+public class Event {    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 2000)
     private String title;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -27,13 +26,13 @@ public class Event {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column
+    @Column(columnDefinition = "TEXT")
     private String highlights;
 
-    @Column
+    @Column(columnDefinition = "TEXT")
     private String organizerNotes;
 
-    @Column(nullable = true)
+    @Column(nullable = true, length = 2000)
     private String location;
 
     @ElementCollection(fetch = FetchType.LAZY)
